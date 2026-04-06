@@ -1,0 +1,5 @@
+#! expect=error
+[greedy 'a']
+-----
+ERROR: Unexpected keyword `greedy`
+SPAN: 1..7

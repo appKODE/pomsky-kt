@@ -1,0 +1,5 @@
+#! expect=error
+>> 'test'
+-----
+ERROR: Unsupported feature `lookahead/behind` in the `Rust` regex flavor
+SPAN: 0..9

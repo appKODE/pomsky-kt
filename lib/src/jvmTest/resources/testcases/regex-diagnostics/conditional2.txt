@@ -1,0 +1,5 @@
+#! expect=error
+(?|(test)|(!))
+-----
+ERROR: Branch reset groups are not supported
+SPAN: 0..3

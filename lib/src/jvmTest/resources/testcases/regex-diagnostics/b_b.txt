@@ -1,0 +1,6 @@
+#! expect=error
+\b
+-----
+ERROR: Backslash escapes are not supported
+HELP: Replace `\b` with `%` to match a word boundary
+SPAN: 0..2

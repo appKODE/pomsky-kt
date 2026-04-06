@@ -1,0 +1,70 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    name: Build & Publish
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build all targets
+        run: ./gradlew build
+
+      - name: Run tests
+        run: ./gradlew jvmTest macosArm64Test
+
+      - name: Build CLI binaries
+        run: |
+          ./gradlew :cli:linkReleaseExecutableMacosArm64
+          ./gradlew :cli:linkReleaseExecutableMacosX64
+          ./gradlew :cli:linkReleaseExecutableLinuxX64
+          ./gradlew :cli:linkReleaseExecutableMingwX64
+
+      - name: Publish to Maven Central
+        run: ./gradlew publishAndReleaseToMavenCentral --no-configuration-cache
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+
+      - name: Package CLI binaries
+        run: |
+          mkdir -p dist
+          cp cli/build/bin/macosArm64/releaseExecutable/pomsky.kexe dist/pomsky-macos-arm64
+          cp cli/build/bin/macosX64/releaseExecutable/pomsky.kexe dist/pomsky-macos-x64
+          cp cli/build/bin/linuxX64/releaseExecutable/pomsky.kexe dist/pomsky-linux-x64
+          cp cli/build/bin/mingwX64/releaseExecutable/pomsky.exe dist/pomsky-windows-x64.exe
+          cd dist && shasum -a 256 * > checksums.sha256
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            dist/pomsky-macos-arm64 \
+            dist/pomsky-macos-x64 \
+            dist/pomsky-linux-x64 \
+            dist/pomsky-windows-x64.exe \
+            dist/checksums.sha256

@@ -1,0 +1,5 @@
+#! expect=error
+"test" 'test test
+-----
+ERROR: This string literal doesn't have a closing quote
+SPAN: 7..17

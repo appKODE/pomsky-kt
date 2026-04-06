@@ -1,0 +1,8 @@
+#! expect=error
+let _ = (
+  let a = 'a';
+);
+a
+-----
+ERROR: Variable `a` doesn't exist
+SPAN: 28..29

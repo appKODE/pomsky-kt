@@ -1,0 +1,5 @@
+#! expect=error
+let
+-----
+ERROR: Expected identifier
+SPAN: 3..3

@@ -1,0 +1,9 @@
+test {
+  match 'a' as {},
+        'b',
+        'c' as { 0: 'c' }
+     in 'abc';
+}
+-----
+
+MATCH_ALL: "a" as { }, "b" as { }, "c" as { 0: "c", } in "abc"

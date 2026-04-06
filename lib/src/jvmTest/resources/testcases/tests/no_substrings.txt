@@ -1,0 +1,6 @@
+test {
+  match in 'hello world';
+}
+-----
+
+MATCH_ALL:  in "hello world"

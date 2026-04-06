@@ -1,0 +1,5 @@
+#! expect=error, flavor=Python
+[White_Space]
+-----
+ERROR: Unsupported feature `Unicode properties (\p{Property})` in the `Python` regex flavor
+SPAN: 1..12

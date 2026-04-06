@@ -1,0 +1,5 @@
+#! expect=error
+['a'-]
+-----
+ERROR: Expected code point or character
+SPAN: 5..6

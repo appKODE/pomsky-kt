@@ -1,0 +1,8 @@
+test {
+  match "hello\"world",
+        'foo' as { 0: "bar" }
+     in "hello\"world foo bar";
+}
+-----
+
+MATCH_ALL: "hello\"world" as { }, "foo" as { 0: "bar", } in "hello\"world foo bar"

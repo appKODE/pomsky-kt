@@ -1,0 +1,6 @@
+#! flavor=Rust
+disable unicode;
+
+^ C . [n r f] [d] [w] [s] % !% 'Hello äöüß' $
+-----
+^[\s\S].[\n\f\r][0-9][0-9A-Z_a-z][\t-\r ]\b\BHello äöüß$

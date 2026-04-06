@@ -1,0 +1,5 @@
+#! expect=error
+['a'-'bc']
+-----
+ERROR: Strings used in ranges can only contain 1 code point
+SPAN: 5..9

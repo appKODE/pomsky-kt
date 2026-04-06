@@ -1,0 +1,6 @@
+let foo = [d];
+disable unicode;
+
+[d] foo
+-----
+[0-9]\d

@@ -1,0 +1,5 @@
+#! expect=error, flavor=JavaScript
+['_' !w] !['_' !w]
+-----
+ERROR: In the `JavaScript` flavor, `word` can only be negated in a character class when Unicode is disabled
+SPAN: 6..7

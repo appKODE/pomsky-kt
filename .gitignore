@@ -1,0 +1,9 @@
+build/
+.gradle/
+.kotlin/
+.idea/
+.omc/
+.claude/
+CLAUDE.md
+local.properties
+*.DS_Store

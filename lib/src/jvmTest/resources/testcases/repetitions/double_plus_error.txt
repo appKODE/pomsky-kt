@@ -1,0 +1,6 @@
+#! expect=error
+'hello'++
+-----
+ERROR: Only one repetition allowed
+HELP: Add parentheses around the first repetition.
+SPAN: 8..9

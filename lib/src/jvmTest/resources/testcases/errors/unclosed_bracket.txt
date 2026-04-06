@@ -1,0 +1,5 @@
+#! expect=error
+[
+-----
+ERROR: Expected character class, string, code point, Unicode property or `]`
+SPAN: 1..1

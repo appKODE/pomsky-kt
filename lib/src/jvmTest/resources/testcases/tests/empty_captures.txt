@@ -1,0 +1,6 @@
+test {
+  match 'hello world' as {};
+}
+-----
+
+MATCH: "hello world" as { }

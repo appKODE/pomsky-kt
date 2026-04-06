@@ -1,0 +1,5 @@
+#! expect=error
+"a\ "
+-----
+ERROR: Unsupported escape sequence in string
+SPAN: 2..4

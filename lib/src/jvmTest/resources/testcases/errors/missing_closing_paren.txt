@@ -1,0 +1,5 @@
+#! expect=error
+('hello'
+-----
+ERROR: Expected `)` or an expression
+SPAN: 8..8

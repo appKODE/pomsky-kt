@@ -1,0 +1,8 @@
+#! expect=error
+# code points
+
+U+7 U+FF U7 UFF
+-----
+ERROR: Variable `U7` doesn't exist
+HELP: Perhaps you meant a code point: `U+7`
+SPAN: 24..26

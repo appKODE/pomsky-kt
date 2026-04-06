@@ -1,0 +1,13 @@
+#! flavor=pcre
+let a = (
+    let a = (
+        let a = >> 'h';
+        let b = << 'h';
+        a b
+    );
+    a a
+);
+
+a a
+-----
+(?=h)(?<=h)(?=h)(?<=h)(?=h)(?<=h)(?=h)(?<=h)

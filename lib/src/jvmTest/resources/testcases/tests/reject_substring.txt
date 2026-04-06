@@ -1,0 +1,8 @@
+test {
+  reject in 'hello world';
+}
+
+'hello world'
+-----
+hello world
+REJECT: in "hello world"

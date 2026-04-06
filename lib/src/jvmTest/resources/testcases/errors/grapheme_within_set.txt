@@ -1,0 +1,6 @@
+#! expect=error
+[Grapheme]
+-----
+ERROR: Unknown character class `Grapheme`
+HELP: Perhaps you meant `Grapheme_Base`
+SPAN: 1..9

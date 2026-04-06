@@ -1,0 +1,6 @@
+#! expect=error
+let x = y;
+x
+-----
+ERROR: Variable `y` doesn't exist
+SPAN: 8..9

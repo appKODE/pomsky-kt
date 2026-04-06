@@ -1,0 +1,5 @@
+#! expect=error
+[]
+-----
+ERROR: This character class is empty
+SPAN: 0..2

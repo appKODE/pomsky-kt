@@ -1,0 +1,10 @@
+#! expect=error
+!regex "^$_//\\\\{2}\"[^$]"
+-----
+ERROR: An inline regex can't be negated
+HELP: Only the following expressions can be negated:
+- character sets
+- string literals and alternations that match exactly one code point
+- lookarounds
+- the `%` word boundary
+SPAN: 0..1

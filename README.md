@@ -27,7 +27,7 @@ This port targets feature parity with the Rust implementation.
 
 ```kotlin
 // Add dependency
-// implementation("ru.kode.pomsky-kt:lib:0.12.0")
+// implementation("ru.kode.pomsky-kt:lib:0.13.0")
 
 import ru.kode.pomskykt.Expr
 import ru.kode.pomskykt.options.CompileOptions

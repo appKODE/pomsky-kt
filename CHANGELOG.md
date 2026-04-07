@@ -34,6 +34,7 @@ All notable changes to pomsky-kt will be documented in this file.
 
 - **Assertion optimizations** — removes redundant positive lookaheads when followed by the same expression, outlines boundary assertions from lookahead starts. (#56)
 - **Alternation factoring** — extracts common literal prefixes from alternation branches. `'abc' | 'abd'` now compiles to `ab[cd]` instead of `abc|abd`.
+- **Dead branch elimination** — removes duplicate and subsumed alternation branches. `'abc' | 'abc' | 'def'` → `'abc' | 'def'`; `['a'-'z'] | ['a'-'c']` → `['a'-'z']`.
 
 ### Fixed
 
@@ -50,10 +51,6 @@ The decompiler parses regex strings and produces idiomatic Pomsky DSL:
 - Named groups: `(?<name>...)` → `:name(...)`
 - Lookaround: `(?=...)` → `>> ...`, `(?!...)` → `!>> ...`
 - Flavor-aware parsing: PCRE POSIX classes (`[[:alpha:]]`), .NET surrogate pairs, Python `(?P<name>...)` / `(?P=name)`, Ruby `\k'name'`, Rust `\<`/`\>` word boundaries
-
-### Changed
-
-- Removed `linuxArm64` from default build targets.
 
 ## [0.12.0] - 2025-11-08
 

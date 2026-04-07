@@ -15,6 +15,7 @@ import ru.kode.pomskykt.options.CompileOptions
 import ru.kode.pomskykt.options.RegexFlavor
 import ru.kode.pomskykt.regex.autoAtomize
 import ru.kode.pomskykt.regex.codegen
+import ru.kode.pomskykt.regex.eliminateDeadBranches
 import ru.kode.pomskykt.regex.factorAlternations
 import ru.kode.pomskykt.regex.optimize
 import ru.kode.pomskykt.regex.optimizeAssertions
@@ -161,10 +162,13 @@ class Expr(val rule: Rule) {
         // 5a. Factor common prefixes from alternations
         val factored = optimized.factorAlternations()
 
-        // 5b. Optimize lookaround assertions
-        val assertionOpt = factored.optimizeAssertions()
+        // 5b. Eliminate dead (redundant) alternation branches
+        val pruned = factored.eliminateDeadBranches()
 
-        // 5c. Auto-atomize (opt-in, only for flavors supporting atomic groups)
+        // 5c. Optimize lookaround assertions
+        val assertionOpt = pruned.optimizeAssertions()
+
+        // 5d. Auto-atomize (opt-in, only for flavors supporting atomic groups)
         val atomized = if (options.autoAtomize && flavorSupportsAtomicGroups(options.flavor)) {
             assertionOpt.autoAtomize()
         } else {

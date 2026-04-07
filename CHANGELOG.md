@@ -30,9 +30,16 @@ All notable changes to pomsky-kt will be documented in this file.
 - **Auto-Formatter** — `PomskyFormatter.format(source)` parses Pomsky source and re-emits with consistent spacing, indentation, and style. Configurable via `FormatOptions(indentWidth, maxLineLength)`. (#48)
 - **Python `regex` Module Flavor** — `RegexFlavor.PythonRegex` for the third-party `regex` module. Supports Unicode properties and atomic groups (unlike plain `Python` flavor). Same `(?P<name>...)` syntax and `\U` escapes. (#87)
 
+### Optimized
+
+- **Assertion optimizations** — removes redundant positive lookaheads when followed by the same expression, outlines boundary assertions from lookahead starts. (#56)
+- **Alternation factoring** — extracts common literal prefixes from alternation branches. `'abc' | 'abd'` now compiles to `ab[cd]` instead of `abc|abd`.
+
 ### Fixed
 
 - **Unicode `\w` for .NET** — `[word]` in Unicode mode now polyfills to `[\p{Alphabetic}\p{M}\p{Nd}\p{Pc}]` for .NET flavor, matching the existing JavaScript polyfill. Previously .NET's non-Unicode `\w` was used incorrectly. (#88)
+- **Empty negated groups** — `![word digit space]` now correctly produces a compile error when the combined shorthands cover all code points, making the negation unmatchable. (#68)
+- **.NET BMP limitation** — negating supplementary code points (above U+FFFF) in .NET flavor correctly produces an error, since .NET's UTF-16 surrogate pair encoding can't represent negated supplementary characters. (#89)
 
 ### Decompiler Details
 

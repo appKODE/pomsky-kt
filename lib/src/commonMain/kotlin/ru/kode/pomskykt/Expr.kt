@@ -15,7 +15,9 @@ import ru.kode.pomskykt.options.CompileOptions
 import ru.kode.pomskykt.options.RegexFlavor
 import ru.kode.pomskykt.regex.autoAtomize
 import ru.kode.pomskykt.regex.codegen
+import ru.kode.pomskykt.regex.factorAlternations
 import ru.kode.pomskykt.regex.optimize
+import ru.kode.pomskykt.regex.optimizeAssertions
 import ru.kode.pomskykt.syntax.diagnose.ParseDiagnosticKind
 import ru.kode.pomskykt.syntax.diagnose.toMessage
 import ru.kode.pomskykt.syntax.Span
@@ -156,11 +158,17 @@ class Expr(val rule: Rule) {
         // 5. Optimize
         val optimized = regexIR.optimize() ?: regexIR
 
-        // 5b. Auto-atomize (opt-in, only for flavors supporting atomic groups)
+        // 5a. Factor common prefixes from alternations
+        val factored = optimized.factorAlternations()
+
+        // 5b. Optimize lookaround assertions
+        val assertionOpt = factored.optimizeAssertions()
+
+        // 5c. Auto-atomize (opt-in, only for flavors supporting atomic groups)
         val atomized = if (options.autoAtomize && flavorSupportsAtomicGroups(options.flavor)) {
-            optimized.autoAtomize()
+            assertionOpt.autoAtomize()
         } else {
-            optimized
+            assertionOpt
         }
 
         // 6. Codegen

@@ -209,6 +209,10 @@ private fun checkComplementaryPairs(items: List<RegexCharSetItem>): Pair<String,
     if (RegexShorthand.NotDigit in shorthands && RegexShorthand.NotSpace in shorthands)
         return "!space" to "!digit"
 
+    // word + digit + space → covers all code points (word ⊃ digit, word + space ≈ everything)
+    if (RegexShorthand.Word in shorthands && RegexShorthand.Digit in shorthands && RegexShorthand.Space in shorthands)
+        return "word" to "space"
+
     // Check for Unicode property + its negation
     val props = items.filterIsInstance<RegexCharSetItem.Property>()
     for (prop in props.filter { !it.negative }) {

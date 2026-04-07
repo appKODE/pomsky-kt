@@ -2,7 +2,7 @@
 
 All notable changes to pomsky-kt will be documented in this file.
 
-## [0.13.0]
+## [0.13.0] - 2026-04-07
 
 ### Added
 

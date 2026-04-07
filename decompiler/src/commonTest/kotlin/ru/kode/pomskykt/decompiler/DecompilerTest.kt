@@ -249,7 +249,7 @@ class DecompilerTest {
 
     @Test
     fun decompileKarandashTitlePattern() {
-        val result = decompile("^((\\[MAPS-\\d+\\])+)?(\\[(ios|android|core)\\]) .+")
+        val result = decompile("^((\\[PROJ-\\d+\\])+)?(\\[(ios|android|core)\\]) .+")
         assertNotNull(result)
     }
 

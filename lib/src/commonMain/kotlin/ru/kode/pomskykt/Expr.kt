@@ -35,7 +35,7 @@ import ru.kode.pomskykt.visitor.walkRule
 class Expr(val rule: Rule) {
 
     companion object {
-        const val VERSION = "0.12.0"
+        const val VERSION = "0.13.0"
 
         /**
          * Parse a pomsky expression.

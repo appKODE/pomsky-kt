@@ -163,7 +163,9 @@ private fun compileIntersection(inter: Intersection, options: CompileOptions, st
     // Check flavor restrictions AFTER successful intersection compilation
     if (options.flavor == RegexFlavor.DotNet ||
         options.flavor == RegexFlavor.Python ||
-        options.flavor == RegexFlavor.RE2
+        options.flavor == RegexFlavor.PythonRegex ||
+        options.flavor == RegexFlavor.RE2 ||
+        options.flavor == RegexFlavor.PosixExtended
     ) {
         throw CompileException(
             CompileErrorKind.Unsupported(Feature.CharSetIntersection, options.flavor),
@@ -320,7 +322,7 @@ private fun Rule.spanOrEmpty(): ru.kode.pomskykt.syntax.Span = when (this) {
 // --- Boundary ---
 
 private fun compileBoundary(boundary: Boundary, options: CompileOptions, state: CompileState): RIR {
-    if (options.flavor == RegexFlavor.RE2 &&
+    if ((options.flavor == RegexFlavor.RE2 || options.flavor == RegexFlavor.PosixExtended) &&
         (boundary.kind == BoundaryKind.WordStart || boundary.kind == BoundaryKind.WordEnd)
     ) {
         throw CompileException(
@@ -390,8 +392,8 @@ private fun namedClassToItems(
                 items.add(RegexCharSetItem.Char('_'))
                 items.add(RegexCharSetItem.Range('a', 'z'))
                 if (negative) setNegative = true
-            } else if (unicodeAware && (flavor == RegexFlavor.JavaScript || flavor == RegexFlavor.DotNet)) {
-                // JS/DotNet unicode: \w → [\p{Alphabetic}\p{M}\p{Nd}\p{Pc}]
+            } else if (unicodeAware && (flavor == RegexFlavor.JavaScript || flavor == RegexFlavor.DotNet || flavor == RegexFlavor.PythonRegex)) {
+                // JS/DotNet/PythonRegex unicode: \w → [\p{Alphabetic}\p{M}\p{Nd}\p{Pc}]
                 items.add(RegexCharSetItem.Property(RegexProperty.OtherProp(OtherProperties.Alphabetic), false))
                 items.add(RegexCharSetItem.Property(RegexProperty.CategoryProp(Category.Mark), false))
                 items.add(RegexCharSetItem.Property(RegexProperty.CategoryProp(Category.DecimalNumber), false))

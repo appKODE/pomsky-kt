@@ -30,7 +30,10 @@ fun Regex.codegenTo(buf: StringBuilder, flavor: RegexFlavor) {
             val len = parts.size
             for (part in parts) {
                 val needsParens = len > 1 && part.needsParensInSequence()
-                if (needsParens) buf.append("(?:")
+                if (needsParens) {
+                    if (flavor == RegexFlavor.PosixExtended) buf.append('(')
+                    else buf.append("(?:")
+                }
                 part.codegenTo(buf, flavor)
                 if (needsParens) buf.append(')')
             }
@@ -111,6 +114,16 @@ private fun compileChar(cp: Int, buf: StringBuilder, flavor: RegexFlavor) {
         cp == 0x0C -> buf.append("\\f") // form feed
         // \a and \e not supported in all flavors; Rust skips them
         cp == ' '.code -> buf.append(' ')
+        // POSIX ERE: no \n, \r, \t, \f escapes — emit literal characters
+        flavor == RegexFlavor.PosixExtended && cp < 0x80 -> {
+            val c = cp.toChar()
+            if (c in '!'.. '~') {
+                buf.append(c)
+            } else {
+                // Non-printable: emit as literal byte (best-effort for POSIX ERE)
+                buf.append(c)
+            }
+        }
         cp < 0x80 -> {
             val c = cp.toChar()
             if (c in '!'.. '~') {
@@ -132,7 +145,7 @@ private fun compileChar(cp: Int, buf: StringBuilder, flavor: RegexFlavor) {
             buf.append("\\u")
             buf.append(cp.toString(16).uppercase().padStart(4, '0'))
         }
-        flavor == RegexFlavor.Python -> {
+        flavor == RegexFlavor.Python || flavor == RegexFlavor.PythonRegex -> {
             buf.append("\\U")
             buf.append(cp.toString(16).uppercase().padStart(8, '0'))
         }
@@ -177,7 +190,11 @@ private fun codegenCharSet(
         if (!set.negative) {
             when (item) {
                 is RegexCharSetItem.Shorthand -> {
-                    buf.append(item.shorthand.str)
+                    if (flavor == RegexFlavor.PosixExtended) {
+                        buf.append(shorthandToPosixClass(item.shorthand))
+                    } else {
+                        buf.append(item.shorthand.str)
+                    }
                     return
                 }
                 is RegexCharSetItem.Property -> {
@@ -203,6 +220,10 @@ private fun codegenCharSet(
         } else {
             // Negated single shorthand: output negated variant directly
             if (item is RegexCharSetItem.Shorthand) {
+                if (flavor == RegexFlavor.PosixExtended) {
+                    buf.append(negatedShorthandToPosixClass(item.shorthand))
+                    return
+                }
                 val neg = negateShorthand(item.shorthand)
                 if (neg != null) {
                     buf.append(neg.str)
@@ -255,7 +276,13 @@ private fun codegenCharSet(
     var isFirst = true
     for (item in sortedItems) {
         when (item) {
-            is RegexCharSetItem.Shorthand -> buf.append(item.shorthand.str)
+            is RegexCharSetItem.Shorthand -> {
+                if (flavor == RegexFlavor.PosixExtended) {
+                    buf.append(shorthandToPosixBracketExpr(item.shorthand))
+                } else {
+                    buf.append(item.shorthand.str)
+                }
+            }
             is RegexCharSetItem.Property -> codegenProperty(item.property, buf, item.negative, flavor)
             is RegexCharSetItem.Char -> {
                 codegenCharEscInClass(item.char, buf, isFirst, flavor)
@@ -380,7 +407,7 @@ private fun codegenGroup(group: RegexGroup, buf: StringBuilder, flavor: RegexFla
     when (val kind = group.kind) {
         is RegexGroupKind.Named -> {
             when (flavor) {
-                RegexFlavor.Python, RegexFlavor.Pcre, RegexFlavor.Rust ->
+                RegexFlavor.Python, RegexFlavor.PythonRegex, RegexFlavor.Pcre, RegexFlavor.Rust ->
                     buf.append("(?P<${kind.name}>")
                 else -> buf.append("(?<${kind.name}>")
             }
@@ -410,7 +437,11 @@ private fun codegenGroup(group: RegexGroup, buf: StringBuilder, flavor: RegexFla
             for (part in group.parts) {
                 val needsParens = (len > 1 && part.needsParensInSequence()) ||
                     (len == 1 && part is Regex.Unescaped)
-                if (needsParens) buf.append("(?:")
+                if (needsParens) {
+                    // POSIX ERE has no (?:...) syntax — use plain (...)
+                    if (flavor == RegexFlavor.PosixExtended) buf.append('(')
+                    else buf.append("(?:")
+                }
                 part.codegenTo(buf, flavor)
                 if (needsParens) buf.append(')')
             }
@@ -432,7 +463,10 @@ private fun codegenAlternation(alt: RegexAlternation, buf: StringBuilder, flavor
 private fun codegenRepetition(rep: RegexRepetition, buf: StringBuilder, flavor: RegexFlavor) {
     // Wrap inner in (?:...) if it needs parentheses
     val needsParens = needsParensBeforeRepetition(rep.inner, flavor)
-    if (needsParens) buf.append("(?:")
+    if (needsParens) {
+        if (flavor == RegexFlavor.PosixExtended) buf.append('(')
+        else buf.append("(?:")
+    }
     rep.inner.codegenTo(buf, flavor)
     if (needsParens) buf.append(')')
 
@@ -481,6 +515,44 @@ private fun needsParensBeforeRepetition(regex: Regex, flavor: RegexFlavor): Bool
     is Regex.Dot -> false
     is Regex.Recursion -> false
     is Regex.ModeGroup -> false // (?i:...) already has parens
+}
+
+// --- POSIX ERE helpers ---
+
+/** Convert a shorthand to a standalone POSIX bracket expression (outside a class). */
+private fun shorthandToPosixClass(sh: RegexShorthand): String = when (sh) {
+    RegexShorthand.Word -> "[_[:alnum:]]"
+    RegexShorthand.NotWord -> "[^_[:alnum:]]"
+    RegexShorthand.Digit -> "[[:digit:]]"
+    RegexShorthand.NotDigit -> "[^[:digit:]]"
+    RegexShorthand.Space -> "[[:space:]]"
+    RegexShorthand.NotSpace -> "[^[:space:]]"
+    RegexShorthand.HorizSpace -> "[[:blank:]]"
+    RegexShorthand.VertSpace -> "[[:space:]]" // best approximation
+}
+
+/** Convert a negated shorthand to a standalone POSIX bracket expression. */
+private fun negatedShorthandToPosixClass(sh: RegexShorthand): String = when (sh) {
+    RegexShorthand.Word -> "[^_[:alnum:]]"
+    RegexShorthand.NotWord -> "[_[:alnum:]]"
+    RegexShorthand.Digit -> "[^[:digit:]]"
+    RegexShorthand.NotDigit -> "[[:digit:]]"
+    RegexShorthand.Space -> "[^[:space:]]"
+    RegexShorthand.NotSpace -> "[[:space:]]"
+    RegexShorthand.HorizSpace -> "[^[:blank:]]"
+    RegexShorthand.VertSpace -> "[^[:space:]]"
+}
+
+/** Convert a shorthand to a POSIX class expression for use inside [...]. */
+private fun shorthandToPosixBracketExpr(sh: RegexShorthand): String = when (sh) {
+    RegexShorthand.Word -> "_[:alnum:]"
+    RegexShorthand.NotWord -> "^_[:alnum:]" // note: only valid if the set is negated
+    RegexShorthand.Digit -> "[:digit:]"
+    RegexShorthand.NotDigit -> "^[:digit:]"
+    RegexShorthand.Space -> "[:space:]"
+    RegexShorthand.NotSpace -> "^[:space:]"
+    RegexShorthand.HorizSpace -> "[:blank:]"
+    RegexShorthand.VertSpace -> "[:space:]"
 }
 
 // --- Boundary ---

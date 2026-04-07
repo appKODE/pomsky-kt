@@ -14,4 +14,6 @@ enum class RegexFlavor {
     Ruby,
     Rust,
     RE2,
+    PosixExtended,
+    PythonRegex,
 }

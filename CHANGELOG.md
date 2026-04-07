@@ -26,6 +26,9 @@ All notable changes to pomsky-kt will be documented in this file.
 - **Conditionals** — `if (>> 'condition') 'yes' else 'no'` syntax with lookaround conditions. Compiles to `(?=cond)yes|(?!cond)no`. Supports positive/negative lookahead, optional else branch. (#7)
 - **Auto-Atomicization** — opt-in optimization (`CompileOptions(autoAtomize = true)`) that inserts atomic groups `(?>...)` around greedy unbounded repetitions when the following element has provably disjoint characters. Prevents unnecessary backtracking. Supports PCRE, Java, .NET.
 - **Kotlin DSL** — new `dsl` module with type-safe builder API for constructing Pomsky expressions programmatically. `pomsky { start; literal("hello"); oneOrMore { digit }; end }` compiles to `^hello\d+$`. Supports anchors, literals, character classes, quantifiers, groups, captures, alternation, lookaround, and backreferences.
+- **POSIX Extended Regex Flavor** — `RegexFlavor.PosixExtended` for `grep -E`, `awk`, `sed -E`. Uses POSIX bracket expressions (`[[:digit:]]`, `[_[:alnum:]]`, `[[:space:]]`), plain `(...)` groups. No lookaround, backreferences, or Unicode properties. (#11)
+- **Auto-Formatter** — `PomskyFormatter.format(source)` parses Pomsky source and re-emits with consistent spacing, indentation, and style. Configurable via `FormatOptions(indentWidth, maxLineLength)`. (#48)
+- **Python `regex` Module Flavor** — `RegexFlavor.PythonRegex` for the third-party `regex` module. Supports Unicode properties and atomic groups (unlike plain `Python` flavor). Same `(?P<name>...)` syntax and `\U` escapes. (#87)
 
 ### Fixed
 

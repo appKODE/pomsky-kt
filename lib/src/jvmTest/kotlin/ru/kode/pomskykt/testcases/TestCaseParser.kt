@@ -99,5 +99,7 @@ fun normalizeFlavor(raw: String?): RegexFlavor? = when (raw?.trim()?.lowercase()
     "dotnet", ".net" -> RegexFlavor.DotNet
     "ruby" -> RegexFlavor.Ruby
     "re2" -> RegexFlavor.RE2
+    "posix", "posix_extended", "ere" -> RegexFlavor.PosixExtended
+    "python_regex", "pythonregex" -> RegexFlavor.PythonRegex
     else -> null
 }

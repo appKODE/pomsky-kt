@@ -162,6 +162,7 @@ val Feature.displayName: String
         Feature.RepetitionAbove1000 -> "Repetition above 1000"
         Feature.ReuseGroups -> "reuse_groups mode ((?J))"
         Feature.AsciiLineBreaks -> "ascii_line_breaks mode ((?d))"
+        Feature.NamedGroups -> "named capturing groups"
     }
 
 fun IllegalNegationKind.toMessage(): String {

@@ -83,4 +83,5 @@ enum class Feature {
     UnicodeWordBoundaries, WordStartEnd, ScriptExtensions,
     CharSetIntersection, RepetitionAbove1000,
     ReuseGroups, AsciiLineBreaks,
+    NamedGroups,
 }

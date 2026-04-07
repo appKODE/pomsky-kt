@@ -212,6 +212,6 @@ class Expr(val rule: Rule) {
  * Supported: PCRE, Java, .NET. Not supported: JavaScript, Python, RE2, Ruby, Rust.
  */
 private fun flavorSupportsAtomicGroups(flavor: RegexFlavor): Boolean = when (flavor) {
-    RegexFlavor.Pcre, RegexFlavor.Java, RegexFlavor.DotNet -> true
+    RegexFlavor.Pcre, RegexFlavor.Java, RegexFlavor.DotNet, RegexFlavor.PythonRegex -> true
     else -> false
 }

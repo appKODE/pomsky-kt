@@ -120,19 +120,24 @@ class Validator(val options: CompileOptions) : RuleVisitor {
             is GroupKind.Capturing -> {
                 if (kind.capture.name != null) {
                     require(PomskyFeatures.NAMED_GROUPS, group.span)
+                    // POSIX ERE has no named groups
+                    if (flavor() == RegexFlavor.PosixExtended) {
+                        unsupported(Feature.NamedGroups, group.span)
+                    }
                 } else {
                     require(PomskyFeatures.NUMBERED_GROUPS, group.span)
                 }
             }
             is GroupKind.Atomic -> {
                 require(PomskyFeatures.ATOMIC_GROUPS, group.span)
-                // Atomic groups are unsupported in JS, Python, RE2, Ruby
+                // Atomic groups are unsupported in JS, Python, RE2, Ruby, Rust, POSIX ERE
                 if (flavor() in listOf(
                         RegexFlavor.JavaScript,
                         RegexFlavor.Python,
                         RegexFlavor.RE2,
                         RegexFlavor.Ruby,
                         RegexFlavor.Rust,
+                        RegexFlavor.PosixExtended,
                     )
                 ) {
                     unsupported(Feature.AtomicGroups, group.span)
@@ -144,6 +149,17 @@ class Validator(val options: CompileOptions) : RuleVisitor {
 
     override fun visitBoundary(boundary: Boundary) {
         require(PomskyFeatures.BOUNDARIES, boundary.span)
+
+        // POSIX ERE: word boundaries (\b) are not supported
+        if (flavor() == RegexFlavor.PosixExtended) {
+            if (boundary.kind in listOf(
+                    BoundaryKind.Word, BoundaryKind.NotWord,
+                    BoundaryKind.WordStart, BoundaryKind.WordEnd,
+                )
+            ) {
+                unsupported(Feature.UnicodeWordBoundaries, boundary.span)
+            }
+        }
 
         // Ruby: <word-start> and <word-end> are not allowed inside lookbehind
         if (flavor() == RegexFlavor.Ruby && insideLookbehind()) {
@@ -163,8 +179,10 @@ class Validator(val options: CompileOptions) : RuleVisitor {
         when (lookaround.kind) {
             LookaroundKind.Ahead, LookaroundKind.AheadNegative -> {
                 require(PomskyFeatures.LOOKAHEAD, lookaround.span)
-                // Rust, RE2 don't support lookahead
-                if (flavor() == RegexFlavor.Rust || flavor() == RegexFlavor.RE2) {
+                // Rust, RE2, POSIX ERE don't support lookahead
+                if (flavor() == RegexFlavor.Rust || flavor() == RegexFlavor.RE2 ||
+                    flavor() == RegexFlavor.PosixExtended
+                ) {
                     unsupported(Feature.Lookaround, lookaround.span)
                 }
                 // Ruby: lookahead inside lookbehind is not allowed
@@ -177,8 +195,10 @@ class Validator(val options: CompileOptions) : RuleVisitor {
             }
             LookaroundKind.Behind, LookaroundKind.BehindNegative -> {
                 require(PomskyFeatures.LOOKBEHIND, lookaround.span)
-                // Rust, RE2 don't support lookbehind
-                if (flavor() == RegexFlavor.Rust || flavor() == RegexFlavor.RE2) {
+                // Rust, RE2, POSIX ERE don't support lookbehind
+                if (flavor() == RegexFlavor.Rust || flavor() == RegexFlavor.RE2 ||
+                    flavor() == RegexFlavor.PosixExtended
+                ) {
                     unsupported(Feature.Lookaround, lookaround.span)
                 }
             }
@@ -221,6 +241,7 @@ class Validator(val options: CompileOptions) : RuleVisitor {
                     } else {
                         when (flavor()) {
                             RegexFlavor.Python -> unsupported(Feature.UnicodeProp, span)
+                            RegexFlavor.PosixExtended -> unsupported(Feature.UnicodeProp, span)
                             else -> {}
                         }
                     }
@@ -231,6 +252,7 @@ class Validator(val options: CompileOptions) : RuleVisitor {
                     } else {
                         when (flavor()) {
                             RegexFlavor.Python -> unsupported(Feature.UnicodeProp, span)
+                            RegexFlavor.PosixExtended -> unsupported(Feature.UnicodeProp, span)
                             RegexFlavor.DotNet -> unsupported(Feature.UnicodeScript, span)
                             else -> {}
                         }
@@ -248,6 +270,7 @@ class Validator(val options: CompileOptions) : RuleVisitor {
                     } else {
                         when (flavor()) {
                             RegexFlavor.JavaScript -> unsupported(Feature.UnicodeBlock, span)
+                            RegexFlavor.PosixExtended -> unsupported(Feature.UnicodeProp, span)
                             else -> {}
                         }
                     }
@@ -259,6 +282,7 @@ class Validator(val options: CompileOptions) : RuleVisitor {
                         when (flavor()) {
                             RegexFlavor.Ruby -> unsupported(Feature.SpecificUnicodeProp, span)
                             RegexFlavor.Python -> unsupported(Feature.UnicodeProp, span)
+                            RegexFlavor.PosixExtended -> unsupported(Feature.UnicodeProp, span)
                             else -> {}
                         }
                     }
@@ -270,6 +294,11 @@ class Validator(val options: CompileOptions) : RuleVisitor {
 
     override fun visitReference(reference: Reference) {
         require(PomskyFeatures.REFERENCES, reference.span)
+
+        // POSIX ERE: backreferences are not supported
+        if (flavor() == RegexFlavor.PosixExtended) {
+            unsupported(Feature.Backreference, reference.span)
+        }
 
         // Ruby: references to both named and numbered groups are unsupported (MixedReferences)
         // This is checked at compile time in RuleCompiler, not here.
@@ -303,6 +332,7 @@ class Validator(val options: CompileOptions) : RuleVisitor {
         if (flavor() !in listOf(RegexFlavor.Pcre, RegexFlavor.Ruby)) {
             unsupported(Feature.Recursion, recursion.span)
         }
+        // Also explicitly unsupported for POSIX ERE (already covered by the check above)
     }
 
     override fun visitGrapheme() {

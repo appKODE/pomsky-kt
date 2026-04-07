@@ -2,6 +2,13 @@
 
 All notable changes to pomsky-kt will be documented in this file.
 
+## [0.14.0] - 2026-04-07
+
+### Added
+
+- **Published `decompiler` module** — `ru.kode.pomsky-kt:decompiler` now available as a standalone Maven artifact for regex-to-Pomsky conversion.
+- **Published `dsl` module** — `ru.kode.pomsky-kt:dsl` now available as a standalone Maven artifact for the type-safe Kotlin builder API.
+
 ## [0.13.0] - 2026-04-07
 
 ### Added

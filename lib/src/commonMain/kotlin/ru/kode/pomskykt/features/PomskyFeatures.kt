@@ -39,6 +39,7 @@ class PomskyFeatures private constructor(private var bits: Int) {
     fun dot(support: Boolean) = apply { setBit(DOT, support) }
     fun recursion(support: Boolean) = apply { setBit(RECURSION, support) }
     fun intersection(support: Boolean) = apply { setBit(INTERSECTION, support) }
+    fun conditionals(support: Boolean) = apply { setBit(CONDITIONALS, support) }
 
     private fun setBit(bit: Int, support: Boolean) {
         bits = if (support) bits or bit else bits and bit.inv()
@@ -61,8 +62,9 @@ class PomskyFeatures private constructor(private var bits: Int) {
         const val DOT = 1 shl 13
         const val RECURSION = 1 shl 14
         const val INTERSECTION = 1 shl 15
+        const val CONDITIONALS = 1 shl 16
 
-        private const val ALL_BITS = (1 shl 16) - 1
+        private const val ALL_BITS = (1 shl 17) - 1
 
         /** All features enabled. */
         fun default() = PomskyFeatures(ALL_BITS)
@@ -87,6 +89,7 @@ class PomskyFeatures private constructor(private var bits: Int) {
             DOT -> UnsupportedError.Dot
             RECURSION -> UnsupportedError.Recursion
             INTERSECTION -> UnsupportedError.Intersection
+            CONDITIONALS -> UnsupportedError.Conditionals
             else -> UnsupportedError.Grapheme // fallback
         }
     }
@@ -97,7 +100,7 @@ enum class UnsupportedError {
     Grapheme, NumberedGroups, NamedGroups, AtomicGroups,
     References, LazyMode, AsciiMode, Ranges, Variables,
     Lookahead, Lookbehind, Boundaries, Regexes, Dot,
-    Recursion, Intersection,
+    Recursion, Intersection, Conditionals,
 }
 
 /** Convert an [UnsupportedError] to a human-readable message. Ported from Rust Display. */
@@ -118,4 +121,5 @@ fun UnsupportedError.toMessage(): String = when (this) {
     UnsupportedError.Dot -> "The dot isn't supported"
     UnsupportedError.Recursion -> "Recursion isn't supported"
     UnsupportedError.Intersection -> "Intersection isn't supported"
+    UnsupportedError.Conditionals -> "Conditionals aren't supported"
 }

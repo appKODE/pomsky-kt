@@ -39,6 +39,7 @@ private fun spanOf(rule: Rule): Span = when (rule) {
     is Rule.Neg -> rule.negation.notSpan
     is Rule.Rgx -> rule.regex.span
     is Rule.Recur -> rule.recursion.span
+    is Rule.Cond -> rule.conditional.span
     is Rule.StmtE -> Span.EMPTY
     Rule.Grapheme, Rule.Codepoint, Rule.Dot -> Span.EMPTY
 }
@@ -65,6 +66,7 @@ fun compileRule(rule: Rule, options: CompileOptions, state: CompileState): RIR {
         is Rule.Neg -> compileNegation(rule.negation, options, state)
         is Rule.Rgx -> compileRegexLiteral(rule.regex)
         is Rule.Recur -> RIR.Recursion
+        is Rule.Cond -> compileConditional(rule.conditional, options, state)
         Rule.Grapheme -> compileGrapheme(options)
         Rule.Codepoint -> compileCodepoint()
         Rule.Dot -> RIR.Dot
@@ -388,8 +390,8 @@ private fun namedClassToItems(
                 items.add(RegexCharSetItem.Char('_'))
                 items.add(RegexCharSetItem.Range('a', 'z'))
                 if (negative) setNegative = true
-            } else if (unicodeAware && flavor == RegexFlavor.JavaScript) {
-                // JS unicode: \w → [\p{Alphabetic}\p{M}\p{Nd}\p{Pc}]
+            } else if (unicodeAware && (flavor == RegexFlavor.JavaScript || flavor == RegexFlavor.DotNet)) {
+                // JS/DotNet unicode: \w → [\p{Alphabetic}\p{M}\p{Nd}\p{Pc}]
                 items.add(RegexCharSetItem.Property(RegexProperty.OtherProp(OtherProperties.Alphabetic), false))
                 items.add(RegexCharSetItem.Property(RegexProperty.CategoryProp(Category.Mark), false))
                 items.add(RegexCharSetItem.Property(RegexProperty.CategoryProp(Category.DecimalNumber), false))
@@ -511,6 +513,47 @@ private fun compileLookaround(look: Lookaround, options: CompileOptions, state: 
     state.nestingDepth--
     state.inLookbehind = prevInLookbehind
     return RIR.Look(RegexLookaround(look.kind, inner))
+}
+
+// --- Conditional ---
+
+private fun compileConditional(cond: Conditional, options: CompileOptions, state: CompileState): RIR {
+    // Unwrap negation(s) around the lookaround condition
+    var condRule = cond.condition
+    var negations = 0
+    while (condRule is Rule.Neg) {
+        negations++
+        condRule = condRule.negation.rule
+    }
+    if (condRule !is Rule.Look) {
+        throw CompileException(CompileErrorKind.ConditionalRequiresLookaround, cond.span)
+    }
+
+    val lookInner = compileRule(condRule.lookaround.rule, options, state)
+    val thenCompiled = compileRule(cond.thenBranch, options, state)
+
+    // Determine if the original lookaround is negative
+    val isLookNegative = condRule.lookaround.kind == LookaroundKind.AheadNegative ||
+        condRule.lookaround.kind == LookaroundKind.BehindNegative
+    // Odd number of negations flips the polarity
+    val isNegative = if (negations % 2 == 1) !isLookNegative else isLookNegative
+
+    // For positive condition: (?=cond)then | (?!cond)else
+    // For negative condition: (?!cond)then | (?=cond)else
+    val thenLookKind = if (isNegative) LookaroundKind.AheadNegative else LookaroundKind.Ahead
+    val elseLookKind = if (isNegative) LookaroundKind.Ahead else LookaroundKind.AheadNegative
+
+    val thenLook = RIR.Look(RegexLookaround(thenLookKind, lookInner))
+    val thenSeq = RIR.Sequence(listOf(thenLook, thenCompiled))
+
+    val elseRule = cond.elseBranch
+    if (elseRule == null) return thenSeq
+
+    val elseCompiled = compileRule(elseRule, options, state)
+    val elseLook = RIR.Look(RegexLookaround(elseLookKind, lookInner))
+    val elseSeq = RIR.Sequence(listOf(elseLook, elseCompiled))
+
+    return RIR.Alt(RegexAlternation(listOf(thenSeq, elseSeq)))
 }
 
 // --- Reference ---

@@ -605,7 +605,8 @@ internal class Parser(
     // --- Atoms ---
 
     private fun parseAtom(): Rule? {
-        return parseGroup()
+        return parseConditional()
+            ?: parseGroup()
             ?: parseString()
             ?: parseCharSet()
             ?: parseBoundary()
@@ -616,6 +617,32 @@ internal class Parser(
             ?: parseVariable()
             ?: parseDot()
             ?: parseRecursion()
+    }
+
+    // --- Conditional ---
+
+    private fun parseConditional(): Rule? {
+        if (!consumeReserved("if")) return null
+        val startSpan = lastSpan()
+        expect(Token.OpenParen)
+        recursionStart()
+        val condition = parseFixes()
+            ?: throw ParseException(ParseErrorKind.Expected("lookaround condition"))
+        recursionEnd()
+        expect(Token.CloseParen)
+        recursionStart()
+        val thenBranch = parseFixes()
+            ?: throw ParseException(ParseErrorKind.Expected("then branch expression"))
+        recursionEnd()
+        val elseBranch = if (consumeReserved("else")) {
+            recursionStart()
+            val eb = parseFixes()
+                ?: throw ParseException(ParseErrorKind.Expected("else branch expression"))
+            recursionEnd()
+            eb
+        } else null
+        val endSpan = if (elseBranch != null) spanOf(elseBranch) else spanOf(thenBranch)
+        return Rule.Cond(Conditional(condition, thenBranch, elseBranch, startSpan.join(endSpan)))
     }
 
     // --- Group ---
@@ -1171,6 +1198,7 @@ internal class Parser(
         is Rule.Neg -> rule.negation.notSpan
         is Rule.Rgx -> rule.regex.span
         is Rule.Recur -> rule.recursion.span
+        is Rule.Cond -> rule.conditional.span
         Rule.Grapheme, Rule.Codepoint, Rule.Dot -> lastSpan()
     }
 }

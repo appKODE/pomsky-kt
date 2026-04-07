@@ -283,6 +283,18 @@ class Validator(val options: CompileOptions) : RuleVisitor {
         require(PomskyFeatures.REGEXES, regex.span)
     }
 
+    override fun visitConditional(conditional: Conditional) {
+        require(PomskyFeatures.CONDITIONALS, conditional.span)
+        // Condition must be a lookaround (possibly wrapped in negations)
+        var inner = conditional.condition
+        while (inner is Rule.Neg) {
+            inner = inner.negation.rule
+        }
+        if (inner !is Rule.Look) {
+            errors.add(CompileError(CompileErrorKind.ConditionalRequiresLookaround, conditional.span))
+        }
+    }
+
     override fun visitRecursion(recursion: Recursion) {
         require(PomskyFeatures.RECURSION, recursion.span)
         if (firstRecursion == null) firstRecursion = recursion.span
@@ -313,6 +325,11 @@ class Validator(val options: CompileOptions) : RuleVisitor {
         is Rule.Neg -> containsUnboundedRepetition(rule.negation.rule)
         is Rule.StmtE -> containsUnboundedRepetition(rule.stmtExpr.rule)
         is Rule.Look -> containsUnboundedRepetition(rule.lookaround.rule)
+        is Rule.Cond -> {
+            val elseB = rule.conditional.elseBranch
+            containsUnboundedRepetition(rule.conditional.thenBranch) ||
+                (elseB != null && containsUnboundedRepetition(elseB))
+        }
         else -> false
     }
 }

@@ -45,6 +45,7 @@ sealed class CompileErrorKind {
     data object BadIntersection : CompileErrorKind()
     data object EmptyIntersection : CompileErrorKind()
     data object NestedQuantifiers : CompileErrorKind()
+    data object ConditionalRequiresLookaround : CompileErrorKind()
 }
 
 sealed class IllegalNegationKind {
@@ -132,6 +133,8 @@ fun CompileErrorKind.toMessage(): String = when (this) {
         "Intersection of expressions that do not overlap"
     is CompileErrorKind.NestedQuantifiers ->
         "This expression may cause catastrophic backtracking (ReDoS) due to nested quantifiers"
+    is CompileErrorKind.ConditionalRequiresLookaround ->
+        "Conditional requires a lookaround assertion as condition"
 }
 
 /** Display name for a [Feature]. Ported from Rust Feature::name(). */

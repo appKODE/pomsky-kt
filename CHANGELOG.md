@@ -23,6 +23,11 @@ All notable changes to pomsky-kt will be documented in this file.
   - Empty expression: `('')` in non-capturing group — has no effect
   - Unnecessary group: `('ab')` — parentheses around single non-alternation element
   - Quantifier on anchor: `^+`, `$*` — quantifying anchors is usually a mistake
+- **Conditionals** — `if (>> 'condition') 'yes' else 'no'` syntax with lookaround conditions. Compiles to `(?=cond)yes|(?!cond)no`. Supports positive/negative lookahead, optional else branch. (#7)
+
+### Fixed
+
+- **Unicode `\w` for .NET** — `[word]` in Unicode mode now polyfills to `[\p{Alphabetic}\p{M}\p{Nd}\p{Pc}]` for .NET flavor, matching the existing JavaScript polyfill. Previously .NET's non-Unicode `\w` was used incorrectly. (#88)
 
 ### Decompiler Details
 

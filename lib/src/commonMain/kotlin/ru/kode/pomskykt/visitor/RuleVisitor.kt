@@ -9,7 +9,7 @@ import ru.kode.pomskykt.syntax.exprs.*
  */
 enum class NestingKind {
     Group, Alternation, Intersection, Repetition,
-    Lookaround, StmtExpr, Let, Negation,
+    Lookaround, StmtExpr, Let, Negation, Conditional,
 }
 
 interface RuleVisitor {
@@ -31,6 +31,7 @@ interface RuleVisitor {
     fun visitNegation(negation: Negation) {}
     fun visitRegex(regex: Regex) {}
     fun visitRecursion(recursion: Recursion) {}
+    fun visitConditional(conditional: Conditional) {}
     fun visitGrapheme() {}
     fun visitCodepoint() {}
     fun visitDot() {}
@@ -96,6 +97,17 @@ fun walkRule(rule: Rule, visitor: RuleVisitor) {
         }
         is Rule.Rgx -> visitor.visitRegex(rule.regex)
         is Rule.Recur -> visitor.visitRecursion(rule.recursion)
+        is Rule.Cond -> {
+            visitor.visitConditional(rule.conditional)
+            visitor.down(NestingKind.Conditional)
+            walkRule(rule.conditional.condition, visitor)
+            walkRule(rule.conditional.thenBranch, visitor)
+            val elseB = rule.conditional.elseBranch
+            if (elseB != null) {
+                walkRule(elseB, visitor)
+            }
+            visitor.up(NestingKind.Conditional)
+        }
         Rule.Grapheme -> visitor.visitGrapheme()
         Rule.Codepoint -> visitor.visitCodepoint()
         Rule.Dot -> visitor.visitDot()

@@ -151,6 +151,9 @@ fun getCompileHelp(kind: CompileErrorKind, span: Span, input: String): String? =
         }
     }
 
+    is CompileErrorKind.NestedQuantifiers ->
+        "Rewrite to avoid nesting unbounded quantifiers. Use atomic groups or ensure alternatives don't overlap."
+
     is CompileErrorKind.UnknownReferenceNumber -> {
         if (kind.number == 0) {
             "Capturing group numbers start with 1"

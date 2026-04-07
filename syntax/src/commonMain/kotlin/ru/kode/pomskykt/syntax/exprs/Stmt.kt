@@ -21,6 +21,12 @@ sealed class Stmt {
 enum class BooleanSetting {
     Lazy,
     Unicode,
+    IgnoreCase,
+    Multiline,
+    SingleLine,
+    Extended,
+    ReuseGroups,
+    AsciiLineBreaks,
 }
 
 /** A variable binding: `let name = rule`. */

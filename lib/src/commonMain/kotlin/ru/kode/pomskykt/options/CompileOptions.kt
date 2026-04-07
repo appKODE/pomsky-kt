@@ -11,4 +11,6 @@ data class CompileOptions(
     val flavor: RegexFlavor = RegexFlavor.Pcre,
     val maxRangeSize: Int = 6,
     val allowedFeatures: PomskyFeatures = PomskyFeatures.default(),
+    /** When true, run the linter pass to detect common mistakes and anti-patterns. */
+    val lintEnabled: Boolean = false,
 )

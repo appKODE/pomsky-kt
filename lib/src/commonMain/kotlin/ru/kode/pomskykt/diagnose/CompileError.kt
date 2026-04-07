@@ -44,6 +44,7 @@ sealed class CompileErrorKind {
     data object InfiniteRecursion : CompileErrorKind()
     data object BadIntersection : CompileErrorKind()
     data object EmptyIntersection : CompileErrorKind()
+    data object NestedQuantifiers : CompileErrorKind()
 }
 
 sealed class IllegalNegationKind {
@@ -129,6 +130,8 @@ fun CompileErrorKind.toMessage(): String = when (this) {
         "Intersecting these expressions is not supported. Only character sets can be intersected."
     is CompileErrorKind.EmptyIntersection ->
         "Intersection of expressions that do not overlap"
+    is CompileErrorKind.NestedQuantifiers ->
+        "This expression may cause catastrophic backtracking (ReDoS) due to nested quantifiers"
 }
 
 /** Display name for a [Feature]. Ported from Rust Feature::name(). */
@@ -154,6 +157,8 @@ val Feature.displayName: String
         Feature.ScriptExtensions -> "Unicode script extensions"
         Feature.CharSetIntersection -> "Character set intersections"
         Feature.RepetitionAbove1000 -> "Repetition above 1000"
+        Feature.ReuseGroups -> "reuse_groups mode ((?J))"
+        Feature.AsciiLineBreaks -> "ascii_line_breaks mode ((?d))"
     }
 
 fun IllegalNegationKind.toMessage(): String {

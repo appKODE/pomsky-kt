@@ -253,7 +253,24 @@ internal class RegexLexer(
                     RegexToken.NonCapturing
                 }
             }
-            else -> RegexToken.NonCapturing
+            else -> {
+                // Try inline mode group: (?imsxU-imsxU:...)
+                pos-- // rewind past the char we consumed
+                val flags = readModeFlags()
+                val negFlags = if (pos < input.length && input[pos] == '-') {
+                    pos++ // skip '-'
+                    readModeFlags()
+                } else ""
+                if (pos < input.length && input[pos] == ':') {
+                    pos++ // skip ':'
+                    RegexToken.ModeGroup(flags, negFlags)
+                } else if (flags.isNotEmpty() && pos < input.length && input[pos] == ')') {
+                    // Standalone mode flag (?i) without group — treat as non-capturing
+                    RegexToken.NonCapturing
+                } else {
+                    RegexToken.NonCapturing
+                }
+            }
         }
     }
 
@@ -362,6 +379,12 @@ internal class RegexLexer(
         "print" -> RegexToken.UnicodeProperty("Print", false)
         "xdigit" -> RegexToken.UnicodeProperty("Hex_Digit", false)
         else -> RegexToken.UnicodeProperty(name, false)
+    }
+
+    private fun readModeFlags(): String {
+        val start = pos
+        while (pos < input.length && input[pos] in "imsxUu") pos++
+        return input.substring(start, pos)
     }
 
     private fun readUntil(end: kotlin.Char): String {

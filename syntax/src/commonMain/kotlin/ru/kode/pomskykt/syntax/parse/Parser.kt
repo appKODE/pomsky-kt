@@ -193,10 +193,16 @@ internal class Parser(
                 is Stmt.Enable -> when (s.setting) {
                     BooleanSetting.Lazy -> isLazy = true
                     BooleanSetting.Unicode -> isUnicodeAware = true
+                    BooleanSetting.IgnoreCase, BooleanSetting.Multiline,
+                    BooleanSetting.SingleLine, BooleanSetting.Extended,
+                    BooleanSetting.ReuseGroups, BooleanSetting.AsciiLineBreaks -> {}
                 }
                 is Stmt.Disable -> when (s.setting) {
                     BooleanSetting.Lazy -> isLazy = false
                     BooleanSetting.Unicode -> isUnicodeAware = false
+                    BooleanSetting.IgnoreCase, BooleanSetting.Multiline,
+                    BooleanSetting.SingleLine, BooleanSetting.Extended,
+                    BooleanSetting.ReuseGroups, BooleanSetting.AsciiLineBreaks -> {}
                 }
                 else -> {}
             }
@@ -250,7 +256,25 @@ internal class Parser(
                 isUnicodeAware = !isEnable
                 BooleanSetting.Unicode
             }
-            else -> throw ParseException(ParseErrorKind.Expected("`lazy` or `unicode`"))
+            consumeKeyword("ignore_case") -> {
+                BooleanSetting.IgnoreCase
+            }
+            consumeKeyword("multiline") -> {
+                BooleanSetting.Multiline
+            }
+            consumeKeyword("single_line") -> {
+                BooleanSetting.SingleLine
+            }
+            consumeKeyword("extended") -> {
+                BooleanSetting.Extended
+            }
+            consumeKeyword("reuse_groups") -> {
+                BooleanSetting.ReuseGroups
+            }
+            consumeKeyword("ascii_line_breaks") -> {
+                BooleanSetting.AsciiLineBreaks
+            }
+            else -> throw ParseException(ParseErrorKind.Expected("`lazy`, `unicode`, `ignore_case`, `multiline`, `single_line`, `extended`, `reuse_groups`, or `ascii_line_breaks`"))
         }
         expect(Token.Semicolon)
         val endSpan = lastSpan()

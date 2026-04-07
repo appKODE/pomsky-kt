@@ -49,6 +49,10 @@ private fun Regex.optimizeInner(): Pair<Regex, Count> = when (this) {
         val (inner, _) = lookaround.inner.optimizeInner()
         Regex.Look(RegexLookaround(lookaround.kind, inner)) to Count.One
     }
+    is Regex.ModeGroup -> {
+        val (inner, _) = this.inner.optimizeInner()
+        Regex.ModeGroup(this.flags, inner) to Count.One
+    }
 }
 
 private fun optimizeSequence(parts: List<Regex>): Pair<Regex, Count> {

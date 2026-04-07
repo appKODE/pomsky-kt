@@ -24,6 +24,7 @@ internal sealed class RegexToken {
     data object NonCapturing : RegexToken()
     data class NamedGroup(val name: String) : RegexToken()
     data object AtomicGroup : RegexToken()
+    data class ModeGroup(val flags: String, val negFlags: String) : RegexToken()
     data object LookaheadPos : RegexToken()
     data object LookaheadNeg : RegexToken()
     data object LookbehindPos : RegexToken()

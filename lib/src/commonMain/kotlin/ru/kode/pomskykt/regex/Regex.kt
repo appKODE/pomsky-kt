@@ -27,7 +27,18 @@ sealed class Regex {
     data class Look(val lookaround: RegexLookaround) : Regex()
     data class Ref(val reference: RegexReference) : Regex()
     data object Recursion : Regex()
+    data class ModeGroup(val flags: RegexModeFlags, val inner: Regex) : Regex()
 }
+
+/** Flags for inline mode groups like `(?i:...)` or `(?ms:...)`. */
+data class RegexModeFlags(
+    val ignoreCase: Boolean? = null,
+    val multiline: Boolean? = null,
+    val singleLine: Boolean? = null,
+    val extended: Boolean? = null,
+    val reuseGroups: Boolean? = null,
+    val asciiLineBreaks: Boolean? = null,
+)
 
 /** A character set: `[a-zA-Z0-9]`. */
 data class RegexCharSet(

@@ -82,4 +82,5 @@ enum class Feature {
     MixedReferences, RepeatedAssertion, Recursion,
     UnicodeWordBoundaries, WordStartEnd, ScriptExtensions,
     CharSetIntersection, RepetitionAbove1000,
+    ReuseGroups, AsciiLineBreaks,
 }

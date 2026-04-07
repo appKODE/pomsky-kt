@@ -66,6 +66,13 @@ class Validator(val options: CompileOptions) : RuleVisitor {
             require(PomskyFeatures.LAZY_MODE, repetition.span)
         }
 
+        // ReDoS detection: nested unbounded quantifiers
+        if (repetition.kind.upperBound == null) {
+            if (containsUnboundedRepetition(repetition.rule)) {
+                errors.add(CompileError(CompileErrorKind.NestedQuantifiers, repetition.span))
+            }
+        }
+
         // Ruby: repeated assertions (boundary or lookaround inside a repetition) are unsupported
         if (flavor() == RegexFlavor.Ruby) {
             val inner = repetition.rule
@@ -292,5 +299,20 @@ class Validator(val options: CompileOptions) : RuleVisitor {
 
     override fun visitDot() {
         require(PomskyFeatures.DOT, Span.EMPTY)
+    }
+
+    /**
+     * Recursively checks whether a rule contains an unbounded repetition (upper == null).
+     * Walks through groups, alternations, negations, and stmt expressions,
+     * but NOT through variable references (let bindings).
+     */
+    private fun containsUnboundedRepetition(rule: Rule): Boolean = when (rule) {
+        is Rule.Rep -> rule.repetition.kind.upperBound == null
+        is Rule.Grp -> rule.group.parts.any { containsUnboundedRepetition(it) }
+        is Rule.Alt -> rule.alternation.rules.any { containsUnboundedRepetition(it) }
+        is Rule.Neg -> containsUnboundedRepetition(rule.negation.rule)
+        is Rule.StmtE -> containsUnboundedRepetition(rule.stmtExpr.rule)
+        is Rule.Look -> containsUnboundedRepetition(rule.lookaround.rule)
+        else -> false
     }
 }

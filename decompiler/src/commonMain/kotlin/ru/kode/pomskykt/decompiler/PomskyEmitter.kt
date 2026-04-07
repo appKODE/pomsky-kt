@@ -42,6 +42,7 @@ internal class PomskyEmitter {
             is Regex.Look -> emitLookaround(regex.lookaround, ctx)
             is Regex.Ref -> emitReference(regex.reference)
             is Regex.Recursion -> buf.append("recursion")
+            is Regex.ModeGroup -> emitModeGroup(regex, ctx)
         }
     }
 
@@ -325,6 +326,7 @@ internal class PomskyEmitter {
         is Regex.Rep -> true
         is Regex.Literal -> regex.content.length > 1
         is Regex.Group -> regex.group.kind is RegexGroupKind.NonCapturing && regex.group.parts.size > 1
+        is Regex.ModeGroup -> true
         else -> false
     }
 
@@ -353,6 +355,25 @@ internal class PomskyEmitter {
         buf.append(prefix)
         emitNode(look.inner, Context.GROUP)
         if (needsParens) buf.append(')')
+    }
+
+    private fun emitModeGroup(modeGroup: Regex.ModeGroup, ctx: Context) {
+        val flags = modeGroup.flags
+        val modifiers = listOfNotNull(
+            flags.ignoreCase?.let { if (it) "enable ignore_case" else "disable ignore_case" },
+            flags.multiline?.let { if (it) "enable multiline" else "disable multiline" },
+            flags.singleLine?.let { if (it) "enable single_line" else "disable single_line" },
+            flags.extended?.let { if (it) "enable extended" else "disable extended" },
+            flags.reuseGroups?.let { if (it) "enable reuse_groups" else "disable reuse_groups" },
+            flags.asciiLineBreaks?.let { if (it) "enable ascii_line_breaks" else "disable ascii_line_breaks" },
+        )
+        for (mod in modifiers) {
+            buf.append('(')
+            buf.append(mod)
+            buf.append("; ")
+        }
+        emitNode(modeGroup.inner, Context.GROUP)
+        repeat(modifiers.size) { buf.append(')') }
     }
 
     private fun emitReference(ref: RegexReference) {

@@ -19,6 +19,7 @@ import ru.kode.pomskykt.regex.RegexGroupKind
 import ru.kode.pomskykt.regex.RegexLookaround
 import ru.kode.pomskykt.regex.RegexProperty
 import ru.kode.pomskykt.regex.RegexReference
+import ru.kode.pomskykt.regex.RegexModeFlags
 import ru.kode.pomskykt.regex.RegexRepetition
 import ru.kode.pomskykt.regex.RegexShorthand
 
@@ -527,6 +528,15 @@ private fun compileReference(ref: Reference, options: CompileOptions, state: Com
                     CompileErrorKind.UnknownReferenceName(target.name),
                     ref.span,
                 )
+            // Forward reference check for named groups
+            if (groupIndex.absolute >= state.nextIdx) {
+                if (options.flavor == RegexFlavor.Rust || options.flavor == RegexFlavor.RE2) {
+                    throw CompileException(
+                        CompileErrorKind.Unsupported(Feature.ForwardReference, options.flavor),
+                        ref.span,
+                    )
+                }
+            }
             if (options.flavor == RegexFlavor.Rust || options.flavor == RegexFlavor.RE2) {
                 throw CompileException(
                     CompileErrorKind.Unsupported(Feature.Backreference, options.flavor),
@@ -631,10 +641,63 @@ private fun compileReference(ref: Reference, options: CompileOptions, state: Com
 
 // --- Statement ---
 
+private fun settingToFlag(setting: BooleanSetting, enabled: Boolean): RegexModeFlags? = when (setting) {
+    BooleanSetting.IgnoreCase -> RegexModeFlags(ignoreCase = enabled)
+    BooleanSetting.Multiline -> RegexModeFlags(multiline = enabled)
+    BooleanSetting.SingleLine -> RegexModeFlags(singleLine = enabled)
+    BooleanSetting.Extended -> RegexModeFlags(extended = enabled)
+    BooleanSetting.ReuseGroups -> RegexModeFlags(reuseGroups = enabled)
+    BooleanSetting.AsciiLineBreaks -> RegexModeFlags(asciiLineBreaks = enabled)
+    BooleanSetting.Lazy, BooleanSetting.Unicode -> null
+}
+
+private fun validateModeModifier(
+    setting: BooleanSetting,
+    flavor: RegexFlavor,
+    span: Span,
+) {
+    when (setting) {
+        BooleanSetting.ReuseGroups -> {
+            if (flavor != RegexFlavor.Pcre) {
+                throw CompileException(
+                    CompileErrorKind.Unsupported(Feature.ReuseGroups, flavor),
+                    span,
+                )
+            }
+        }
+        BooleanSetting.AsciiLineBreaks -> {
+            if (flavor != RegexFlavor.Pcre && flavor != RegexFlavor.Java) {
+                throw CompileException(
+                    CompileErrorKind.Unsupported(Feature.AsciiLineBreaks, flavor),
+                    span,
+                )
+            }
+        }
+        else -> {}
+    }
+}
+
 private fun compileStmtExpr(stmtExpr: StmtExpr, options: CompileOptions, state: CompileState): RIR {
     return when (val stmt = stmtExpr.stmt) {
-        is Stmt.Enable, is Stmt.Disable -> {
-            compileRule(stmtExpr.rule, options, state)
+        is Stmt.Enable -> {
+            validateModeModifier(stmt.setting, options.flavor, stmt.span)
+            val flag = settingToFlag(stmt.setting, true)
+            if (flag != null) {
+                val inner = compileRule(stmtExpr.rule, options, state)
+                RIR.ModeGroup(flag, inner)
+            } else {
+                compileRule(stmtExpr.rule, options, state)
+            }
+        }
+        is Stmt.Disable -> {
+            validateModeModifier(stmt.setting, options.flavor, stmt.span)
+            val flag = settingToFlag(stmt.setting, false)
+            if (flag != null) {
+                val inner = compileRule(stmtExpr.rule, options, state)
+                RIR.ModeGroup(flag, inner)
+            } else {
+                compileRule(stmtExpr.rule, options, state)
+            }
         }
         is Stmt.LetDecl -> {
             // Check the let binding body for captures and references (not allowed)

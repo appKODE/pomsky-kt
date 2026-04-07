@@ -41,6 +41,7 @@ fun Regex.codegenTo(buf: StringBuilder, flavor: RegexFlavor) {
         is Regex.Look -> codegenLookaround(lookaround, buf, flavor)
         is Regex.Ref -> codegenReference(reference, buf)
         is Regex.Recursion -> codegenRecursion(buf, flavor)
+        is Regex.ModeGroup -> codegenModeGroup(flags, inner, buf, flavor)
     }
 }
 
@@ -479,6 +480,7 @@ private fun needsParensBeforeRepetition(regex: Regex, flavor: RegexFlavor): Bool
     is Regex.Ref -> false
     is Regex.Dot -> false
     is Regex.Recursion -> false
+    is Regex.ModeGroup -> false // (?i:...) already has parens
 }
 
 // --- Boundary ---
@@ -532,6 +534,41 @@ private fun codegenReference(ref: RegexReference, buf: StringBuilder) {
 
 private fun codegenRecursion(buf: StringBuilder, flavor: RegexFlavor) {
     buf.append("\\g<0>")
+}
+
+// --- Mode group ---
+
+private fun codegenModeGroup(
+    flags: RegexModeFlags,
+    inner: Regex,
+    buf: StringBuilder,
+    flavor: RegexFlavor,
+) {
+    val posFlags = buildString {
+        if (flags.ignoreCase == true) append('i')
+        if (flags.multiline == true) append('m')
+        if (flags.singleLine == true) append('s')
+        if (flags.extended == true) append('x')
+        if (flags.reuseGroups == true) append('J')
+        if (flags.asciiLineBreaks == true) append('d')
+    }
+    val negFlags = buildString {
+        if (flags.ignoreCase == false) append('i')
+        if (flags.multiline == false) append('m')
+        if (flags.singleLine == false) append('s')
+        if (flags.extended == false) append('x')
+        if (flags.reuseGroups == false) append('J')
+        if (flags.asciiLineBreaks == false) append('d')
+    }
+    buf.append("(?")
+    buf.append(posFlags)
+    if (negFlags.isNotEmpty()) {
+        buf.append('-')
+        buf.append(negFlags)
+    }
+    buf.append(':')
+    inner.codegenTo(buf, flavor)
+    buf.append(')')
 }
 
 // --- Shorthand helpers ---

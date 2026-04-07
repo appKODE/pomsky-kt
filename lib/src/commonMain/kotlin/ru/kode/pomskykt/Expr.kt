@@ -4,6 +4,7 @@ import ru.kode.pomskykt.capturing.CapturingGroupsCollector
 import ru.kode.pomskykt.compile.CompileException
 import ru.kode.pomskykt.compile.CompileState
 import ru.kode.pomskykt.compile.compileRule
+import ru.kode.pomskykt.diagnose.CompileErrorKind
 import ru.kode.pomskykt.diagnose.Diagnostic
 import ru.kode.pomskykt.diagnose.DiagnosticKind
 import ru.kode.pomskykt.diagnose.Severity
@@ -17,6 +18,7 @@ import ru.kode.pomskykt.syntax.diagnose.ParseDiagnosticKind
 import ru.kode.pomskykt.syntax.diagnose.toMessage
 import ru.kode.pomskykt.syntax.Span
 import ru.kode.pomskykt.syntax.exprs.*
+import ru.kode.pomskykt.validation.Linter
 import ru.kode.pomskykt.validation.Validator
 import ru.kode.pomskykt.visitor.walkRule
 
@@ -86,18 +88,31 @@ class Expr(val rule: Rule) {
         // 1. Validate
         val validator = Validator(options)
         walkRule(rule, validator)
-        // Rust's compiler short-circuits on first compile error (via `?`), so only report one.
-        validator.compileErrors.firstOrNull()?.let { err ->
+        // Separate warnings (like ReDoS) from hard errors
+        for (err in validator.compileErrors) {
+            val severity = when (err.kind) {
+                is CompileErrorKind.NestedQuantifiers -> Severity.Warning
+                else -> Severity.Error
+            }
             diagnostics.add(Diagnostic(
-                severity = Severity.Error,
+                severity = severity,
                 msg = err.kind.toMessage(),
                 span = err.span,
                 kind = DiagnosticKind.Compat,
                 help = getCompileHelp(err.kind, err.span, input),
             ))
+            // Short-circuit on first hard error (matching Rust behavior)
+            if (severity == Severity.Error) break
         }
         if (diagnostics.any { it.severity == Severity.Error }) {
             return null to diagnostics
+        }
+
+        // 1b. Lint pass (warnings only, never blocks compilation)
+        if (options.lintEnabled) {
+            val linter = Linter()
+            walkRule(rule, linter)
+            diagnostics.addAll(linter.warnings)
         }
 
         // 2. Collect capturing groups

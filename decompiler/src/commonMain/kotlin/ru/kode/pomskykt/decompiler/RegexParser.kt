@@ -8,6 +8,7 @@ import ru.kode.pomskykt.regex.RegexGroup
 import ru.kode.pomskykt.regex.RegexGroupKind
 import ru.kode.pomskykt.regex.RegexLookaround
 import ru.kode.pomskykt.regex.RegexProperty
+import ru.kode.pomskykt.regex.RegexModeFlags
 import ru.kode.pomskykt.regex.RegexReference
 import ru.kode.pomskykt.regex.RegexRepetition
 import ru.kode.pomskykt.syntax.exprs.BoundaryKind
@@ -77,6 +78,7 @@ internal class RegexParser(private val tokens: List<RegexToken>) {
             is RegexToken.NonCapturing -> parseNonCapturingGroup()
             is RegexToken.NamedGroup -> parseNamedGroup(token.name)
             is RegexToken.AtomicGroup -> parseAtomicGroup()
+            is RegexToken.ModeGroup -> parseModeGroup(token.flags, token.negFlags)
             is RegexToken.LookaheadPos -> parseLookaround(LookaroundKind.Ahead)
             is RegexToken.LookaheadNeg -> parseLookaround(LookaroundKind.AheadNegative)
             is RegexToken.LookbehindPos -> parseLookaround(LookaroundKind.Behind)
@@ -312,6 +314,45 @@ internal class RegexParser(private val tokens: List<RegexToken>) {
         val inner = parseAlternation()
         if (hasMore() && peek() is RegexToken.CloseParen) advance()
         return Regex.Group(RegexGroup(listOf(inner), RegexGroupKind.Atomic))
+    }
+
+    private fun parseModeGroup(flags: String, negFlags: String): Regex {
+        advance() // skip ModeGroup token
+        val inner = parseAlternation()
+        if (hasMore() && peek() is RegexToken.CloseParen) advance()
+        val modeFlags = RegexModeFlags(
+            ignoreCase = when {
+                'i' in flags -> true
+                'i' in negFlags -> false
+                else -> null
+            },
+            multiline = when {
+                'm' in flags -> true
+                'm' in negFlags -> false
+                else -> null
+            },
+            singleLine = when {
+                's' in flags -> true
+                's' in negFlags -> false
+                else -> null
+            },
+            extended = when {
+                'x' in flags -> true
+                'x' in negFlags -> false
+                else -> null
+            },
+            reuseGroups = when {
+                'J' in flags -> true
+                'J' in negFlags -> false
+                else -> null
+            },
+            asciiLineBreaks = when {
+                'd' in flags -> true
+                'd' in negFlags -> false
+                else -> null
+            },
+        )
+        return Regex.ModeGroup(modeFlags, inner)
     }
 
     private fun parseLookaround(kind: LookaroundKind): Regex {

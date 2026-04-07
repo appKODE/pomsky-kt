@@ -24,6 +24,8 @@ All notable changes to pomsky-kt will be documented in this file.
   - Unnecessary group: `('ab')` — parentheses around single non-alternation element
   - Quantifier on anchor: `^+`, `$*` — quantifying anchors is usually a mistake
 - **Conditionals** — `if (>> 'condition') 'yes' else 'no'` syntax with lookaround conditions. Compiles to `(?=cond)yes|(?!cond)no`. Supports positive/negative lookahead, optional else branch. (#7)
+- **Auto-Atomicization** — opt-in optimization (`CompileOptions(autoAtomize = true)`) that inserts atomic groups `(?>...)` around greedy unbounded repetitions when the following element has provably disjoint characters. Prevents unnecessary backtracking. Supports PCRE, Java, .NET.
+- **Kotlin DSL** — new `dsl` module with type-safe builder API for constructing Pomsky expressions programmatically. `pomsky { start; literal("hello"); oneOrMore { digit }; end }` compiles to `^hello\d+$`. Supports anchors, literals, character classes, quantifiers, groups, captures, alternation, lookaround, and backreferences.
 
 ### Fixed
 

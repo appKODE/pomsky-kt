@@ -16,5 +16,6 @@ rootProject.name = "pomsky-kt"
 
 include(":syntax")
 include(":lib")
+include(":dsl")
 include(":decompiler")
 include(":cli")

@@ -12,6 +12,8 @@ import ru.kode.pomskykt.diagnose.getCompileHelp
 import ru.kode.pomskykt.diagnose.getParseHelp
 import ru.kode.pomskykt.diagnose.toMessage
 import ru.kode.pomskykt.options.CompileOptions
+import ru.kode.pomskykt.options.RegexFlavor
+import ru.kode.pomskykt.regex.autoAtomize
 import ru.kode.pomskykt.regex.codegen
 import ru.kode.pomskykt.regex.optimize
 import ru.kode.pomskykt.syntax.diagnose.ParseDiagnosticKind
@@ -154,8 +156,15 @@ class Expr(val rule: Rule) {
         // 5. Optimize
         val optimized = regexIR.optimize() ?: regexIR
 
+        // 5b. Auto-atomize (opt-in, only for flavors supporting atomic groups)
+        val atomized = if (options.autoAtomize && flavorSupportsAtomicGroups(options.flavor)) {
+            optimized.autoAtomize()
+        } else {
+            optimized
+        }
+
         // 6. Codegen
-        val result = optimized.codegen(options.flavor)
+        val result = atomized.codegen(options.flavor)
 
         // Add any diagnostics from compilation state
         diagnostics.addAll(state.diagnostics)
@@ -196,4 +205,13 @@ class Expr(val rule: Rule) {
             collectVariables(rule.stmtExpr.rule, vars)
         }
     }
+}
+
+/**
+ * Returns true if the given flavor supports atomic groups `(?>...)`.
+ * Supported: PCRE, Java, .NET. Not supported: JavaScript, Python, RE2, Ruby, Rust.
+ */
+private fun flavorSupportsAtomicGroups(flavor: RegexFlavor): Boolean = when (flavor) {
+    RegexFlavor.Pcre, RegexFlavor.Java, RegexFlavor.DotNet -> true
+    else -> false
 }

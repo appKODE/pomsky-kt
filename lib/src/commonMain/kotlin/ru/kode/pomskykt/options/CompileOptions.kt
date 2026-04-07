@@ -13,4 +13,10 @@ data class CompileOptions(
     val allowedFeatures: PomskyFeatures = PomskyFeatures.default(),
     /** When true, run the linter pass to detect common mistakes and anti-patterns. */
     val lintEnabled: Boolean = false,
+    /**
+     * When true, insert atomic groups `(?>...)` around greedy unbounded repetitions
+     * where the repeated content and the following element have provably disjoint
+     * character sets. Only applies to flavors that support atomic groups (PCRE, Java, .NET).
+     */
+    val autoAtomize: Boolean = false,
 )

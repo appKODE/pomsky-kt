@@ -38,6 +38,13 @@ jobs:
           ./gradlew :cli:linkReleaseExecutableLinuxX64
           ./gradlew :cli:linkReleaseExecutableMingwX64
 
+      - name: Build native shared libraries
+        run: |
+          ./gradlew :ffi:linkReleaseSharedMacosArm64
+          ./gradlew :ffi:linkReleaseSharedMacosX64
+          ./gradlew :ffi:linkReleaseSharedLinuxX64
+          ./gradlew :ffi:linkReleaseSharedMingwX64
+
       - name: Publish to Maven Central
         run: ./gradlew publishAndReleaseToMavenCentral --no-configuration-cache
         env:
@@ -47,13 +54,21 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
 
-      - name: Package CLI binaries
+      - name: Package CLI binaries and native libraries
         run: |
           mkdir -p dist
+          # CLI binaries
           cp cli/build/bin/macosArm64/releaseExecutable/pomsky.kexe dist/pomsky-macos-arm64
           cp cli/build/bin/macosX64/releaseExecutable/pomsky.kexe dist/pomsky-macos-x64
           cp cli/build/bin/linuxX64/releaseExecutable/pomsky.kexe dist/pomsky-linux-x64
           cp cli/build/bin/mingwX64/releaseExecutable/pomsky.exe dist/pomsky-windows-x64.exe
+          # Native shared libraries
+          cp ffi/build/bin/macosArm64/releaseShared/libpomsky.dylib dist/libpomsky-macos-arm64.dylib
+          cp ffi/build/bin/macosX64/releaseShared/libpomsky.dylib dist/libpomsky-macos-x64.dylib
+          cp ffi/build/bin/linuxX64/releaseShared/libpomsky.so dist/libpomsky-linux-x64.so
+          cp ffi/build/bin/mingwX64/releaseShared/pomsky.dll dist/pomsky-windows-x64.dll
+          # C header (same for all platforms)
+          cp ffi/build/bin/macosArm64/releaseShared/libpomsky_api.h dist/
           cd dist && shasum -a 256 * > checksums.sha256
 
       - name: Create GitHub Release
@@ -67,4 +82,9 @@ jobs:
             dist/pomsky-macos-x64 \
             dist/pomsky-linux-x64 \
             dist/pomsky-windows-x64.exe \
+            dist/libpomsky-macos-arm64.dylib \
+            dist/libpomsky-macos-x64.dylib \
+            dist/libpomsky-linux-x64.so \
+            dist/pomsky-windows-x64.dll \
+            dist/libpomsky_api.h \
             dist/checksums.sha256

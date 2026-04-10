@@ -70,3 +70,6 @@ jobs:
 
       - name: Run macOS native tests
         run: ./gradlew macosArm64Test
+
+      - name: Run FFI native tests
+        run: ./gradlew :ffi:macosArm64Test

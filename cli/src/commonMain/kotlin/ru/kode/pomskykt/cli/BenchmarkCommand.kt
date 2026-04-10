@@ -60,7 +60,8 @@ class BenchmarkCommand : CliktCommand(name = "benchmark") {
         echo("Iterations:  ${result.iterations}")
         echo("Test strings: ${result.testStringsUsed}")
         echo("Total time:  ${result.totalTime}")
-        echo("Avg latency: ${"%.2f".format(result.avgTimeUs)} us")
+        val avgStr = ((result.avgTimeUs * 100).toLong() / 100.0).toString()
+        echo("Avg latency: $avgStr us")
         echo("Throughput:  ${result.opsPerSecond} ops/sec")
     }
 }

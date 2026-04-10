@@ -251,7 +251,7 @@ internal class ExplanationEmitter {
         val inner = rep.inner
 
         // For exact repetitions of simple char sets, use natural phrasing like "exactly 4 digits (0-9)"
-        if (rep.lower == rep.upper && rep.lower != null && inner is Regex.CharSet) {
+        if (rep.lower == rep.upper && inner is Regex.CharSet) {
             val plural = charSetPluralNoun(inner.set)
             if (plural != null) {
                 buf.append("exactly ${rep.lower} $plural")

@@ -2,6 +2,34 @@
 
 All notable changes to pomsky-kt will be documented in this file.
 
+## [0.15.0] - 2026-04-10
+
+### Added
+
+- **Regex Explanation Engine** — `Decompiler.explain(regex, flavor)` generates human-readable English descriptions from regex patterns. E.g., `^[A-Z]{2}\d{4}$` → "start of string, exactly 2 uppercase letters (A-Z), followed by exactly 4 digits (0-9), end of string".
+- **Built-in Pattern Library** — 9 named patterns available as variables without `let` bindings: `email`, `semver`, `uuid`, `date_iso8601`, `time_24h`, `hex_color`, `ipv4`, `jira_ticket`, `conventional_commit`. Controllable via `CompileOptions(patternLibraryEnabled = true)`.
+- **Regex Complexity Scorer** — `ComplexityScorer.score(ir)` rates patterns 1-10 for ReDoS risk with detailed factor breakdown (nested quantifiers, alternation branches, lookaround count, backreferences, recursion).
+- **Regex Diff Tool** — `RegexDiff.diff(a, b)` compares two regex IR trees structurally, reporting features only in A, only in B, and structural differences with path tracking.
+- **Test Generator** — `TestGenerator.generate(ir)` auto-generates matching and non-matching sample strings from regex IR. Configurable via `TestGeneratorOptions(maxExamples, coverAllBranches)`.
+- **Capture Group Type Inference** — `CaptureInference.inferGroups(pomskySource)` analyzes named/unnamed captures and generates Kotlin `data class` + `Regex.extract*()` extension function source code.
+- **Railroad Diagram Visualization** — `RailroadDiagram.render(ir)` produces ASCII railroad diagrams with horizontal chaining, vertical alternation branching, and quantifier annotations.
+- **Pattern Fuzzer** — `PatternFuzzer.fuzz(patterns, flavors)` compiles patterns to multiple flavors and tests for cross-flavor match mismatches. All `commonMain` — fully cross-platform.
+- **Performance Benchmarker** — `RegexBenchmark.benchmark(pattern)` measures regex matching throughput (ops/sec, avg latency) with warmup. Uses `kotlin.time.measureTime` — fully cross-platform.
+- **Permutations Operation** — new `permute('a' 'b' 'c')` syntax that compiles to all orderings as alternation (`abc|acb|bac|bca|cab|cba`). Maximum 8 elements (40320 alternatives). (#78)
+- **CLI Test Runner** — `pomsky test` command runs `test { match ...; reject ...; }` blocks against the compiled regex using the platform regex engine. Reports PASS/FAIL per case. (#112)
+- **Native Shared Library (FFI)** — new `ffi` module producing `libpomsky.dylib`/`.so`/`.dll` with C-compatible API: `pomsky_compile`, `pomsky_compile_json`, `pomsky_decompile`, `pomsky_explain`, `pomsky_version`, `pomsky_free`. Auto-generated C header. (#62)
+- **CLI Commands** — 7 new subcommands: `migrate` (regex to Pomsky), `explain` (human-readable), `complexity` (score 1-10), `test` (run test blocks), `visualize` (ASCII railroad), `fuzz` (cross-flavor), `benchmark` (throughput).
+
+### Improved
+
+- **PCRE `\w` Unicode Polyfill** — `[word]` in PCRE Unicode mode now polyfills to `[\p{Alphabetic}\pM\p{Nd}\p{Pc}]`, matching the existing JS/.NET/PythonRegex polyfills. (#113)
+- **Python `\w` Warning** — compiler warning when Python `re` flavor uses `[word]` in Unicode mode, suggesting `python_regex` flavor for proper Unicode support. (#86)
+- **.NET `\p{LC}` Polyfill** — `[LC]` (Cased_Letter) in .NET flavor now expands to `[\p{Lu}\p{Ll}\p{Lt}]`. (#83)
+- **Char Class Intersection Polyfill** — `[a-z] & [d-p]` now works in .NET, Python, PythonRegex, RE2, and POSIX ERE by computing the intersection statically at compile time. Unicode property intersections still require native `&&` support.
+- **Linter Rule 7** — warns on quantifiers applied to lookaround assertions (`(>> 'x')+`). (#10)
+- **Feature Compatibility Matrix** — README now includes a comprehensive table showing feature support across all 10 flavors. (#55)
+- **Conditionals** — now correctly documented as supported in all flavors with lookahead (not just PCRE), since they compile to lookahead assertions.
+
 ## [0.14.0] - 2026-04-07
 
 ### Added

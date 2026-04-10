@@ -159,16 +159,21 @@ private fun compileIntersection(inter: Intersection, options: CompileOptions, st
         return RIR.CharSet(RegexCharSet(mergedItems, negative = true))
     }
 
-    // Build compound char set
+    // Build compound char set for flavors that support && syntax
     val result = RIR.CompoundCharSet(RegexCompoundCharSet(charSets))
 
-    // Check flavor restrictions AFTER successful intersection compilation
+    // Flavors that don't support && syntax: try static intersection
     if (options.flavor == RegexFlavor.DotNet ||
         options.flavor == RegexFlavor.Python ||
         options.flavor == RegexFlavor.PythonRegex ||
         options.flavor == RegexFlavor.RE2 ||
         options.flavor == RegexFlavor.PosixExtended
     ) {
+        val staticResult = tryStaticIntersection(charSets)
+        if (staticResult != null) {
+            return RIR.CharSet(staticResult)
+        }
+        // Can't compute statically (contains properties or complex negations)
         throw CompileException(
             CompileErrorKind.Unsupported(Feature.CharSetIntersection, options.flavor),
             inter.span,
@@ -1106,6 +1111,159 @@ private fun codePointToString(cp: Int): String {
     val high = ((cp - 0x10000) shr 10) + 0xD800
     val low = ((cp - 0x10000) and 0x3FF) + 0xDC00
     return charArrayOf(high.toChar(), low.toChar()).concatToString()
+}
+
+// --- Static char set intersection polyfill ---
+
+/**
+ * Inclusive character interval for intersection computation.
+ */
+private data class CharInterval(val first: Int, val last: Int)
+
+/**
+ * Try to compute the intersection of char sets statically by expanding
+ * to character intervals and intersecting them.
+ *
+ * Returns null if any char set contains items that can't be expanded
+ * statically (e.g., Unicode properties).
+ */
+private fun tryStaticIntersection(charSets: List<RegexCharSet>): RegexCharSet? {
+    // Expand each char set to intervals
+    val intervalSets = charSets.map { cs ->
+        val intervals = expandToIntervals(cs) ?: return null
+        intervals.sortedBy { it.first }
+    }
+
+    // Intersect all pairwise
+    var result = intervalSets[0]
+    for (i in 1 until intervalSets.size) {
+        result = intersectIntervals(result, intervalSets[i])
+        if (result.isEmpty()) return null // empty intersection — caller will handle
+    }
+
+    // Convert back to RegexCharSetItems
+    val items = result.map { interval ->
+        if (interval.first == interval.last) {
+            RegexCharSetItem.Char(interval.first.toChar())
+        } else {
+            RegexCharSetItem.Range(interval.first.toChar(), interval.last.toChar())
+        }
+    }
+
+    if (items.isEmpty()) return null // empty
+    return RegexCharSet(items, negative = false)
+}
+
+private fun expandToIntervals(charSet: RegexCharSet): List<CharInterval>? {
+    if (charSet.negative) {
+        // Negated set: expand the positive items, then compute complement in 0..0xFFFF
+        val positive = mutableListOf<CharInterval>()
+        for (item in charSet.items) {
+            val intervals = expandItemToIntervals(item) ?: return null
+            positive.addAll(intervals)
+        }
+        return complementIntervals(positive.sortedBy { it.first })
+    }
+
+    val intervals = mutableListOf<CharInterval>()
+    for (item in charSet.items) {
+        val itemIntervals = expandItemToIntervals(item) ?: return null
+        intervals.addAll(itemIntervals)
+    }
+    return mergeIntervals(intervals.sortedBy { it.first })
+}
+
+private fun expandItemToIntervals(item: RegexCharSetItem): List<CharInterval>? {
+    return when (item) {
+        is RegexCharSetItem.Char -> listOf(CharInterval(item.char.code, item.char.code))
+        is RegexCharSetItem.Range -> listOf(CharInterval(item.first.code, item.last.code))
+        is RegexCharSetItem.CodePoint -> listOf(CharInterval(item.codePoint, item.codePoint))
+        is RegexCharSetItem.Literal -> item.content.map { CharInterval(it.code, it.code) }
+        is RegexCharSetItem.Shorthand -> expandShorthandToIntervals(item.shorthand)
+        is RegexCharSetItem.Property -> null // can't expand Unicode properties statically
+    }
+}
+
+private fun expandShorthandToIntervals(sh: RegexShorthand): List<CharInterval>? {
+    return when (sh) {
+        RegexShorthand.Digit -> listOf(CharInterval(0x30, 0x39)) // '0'-'9'
+        RegexShorthand.Word -> listOf(
+            CharInterval(0x30, 0x39), // '0'-'9'
+            CharInterval(0x41, 0x5A), // 'A'-'Z'
+            CharInterval(0x5F, 0x5F), // '_'
+            CharInterval(0x61, 0x7A), // 'a'-'z'
+        )
+        RegexShorthand.Space -> listOf(
+            CharInterval(0x09, 0x0D), // \t \n \v \f \r
+            CharInterval(0x20, 0x20), // space
+        )
+        RegexShorthand.NotDigit -> complementIntervals(listOf(CharInterval(0x30, 0x39)))
+        RegexShorthand.NotWord -> complementIntervals(listOf(
+            CharInterval(0x30, 0x39),
+            CharInterval(0x41, 0x5A),
+            CharInterval(0x5F, 0x5F),
+            CharInterval(0x61, 0x7A),
+        ))
+        RegexShorthand.NotSpace -> complementIntervals(listOf(
+            CharInterval(0x09, 0x0D),
+            CharInterval(0x20, 0x20),
+        ))
+        RegexShorthand.HorizSpace -> listOf(
+            CharInterval(0x09, 0x09), // \t
+            CharInterval(0x20, 0x20), // space
+        )
+        RegexShorthand.VertSpace -> listOf(
+            CharInterval(0x0A, 0x0D), // \n \v \f \r
+        )
+    }
+}
+
+// Merge overlapping/adjacent intervals (input must be sorted by first)
+private fun mergeIntervals(sorted: List<CharInterval>): List<CharInterval> {
+    if (sorted.isEmpty()) return sorted
+    val result = mutableListOf(sorted[0])
+    for (i in 1 until sorted.size) {
+        val last = result.last()
+        if (sorted[i].first <= last.last + 1) {
+            result[result.size - 1] = CharInterval(last.first, maxOf(last.last, sorted[i].last))
+        } else {
+            result.add(sorted[i])
+        }
+    }
+    return result
+}
+
+// Intersect two sorted, merged interval lists
+private fun intersectIntervals(a: List<CharInterval>, b: List<CharInterval>): List<CharInterval> {
+    val result = mutableListOf<CharInterval>()
+    var i = 0
+    var j = 0
+    while (i < a.size && j < b.size) {
+        val overlapFirst = maxOf(a[i].first, b[j].first)
+        val overlapLast = minOf(a[i].last, b[j].last)
+        if (overlapFirst <= overlapLast) {
+            result.add(CharInterval(overlapFirst, overlapLast))
+        }
+        if (a[i].last < b[j].last) i++ else j++
+    }
+    return result
+}
+
+// Complement intervals within BMP range (0x0000..0xFFFF)
+private fun complementIntervals(sorted: List<CharInterval>): List<CharInterval> {
+    val merged = mergeIntervals(sorted)
+    val result = mutableListOf<CharInterval>()
+    var pos = 0
+    for (interval in merged) {
+        if (pos < interval.first) {
+            result.add(CharInterval(pos, interval.first - 1))
+        }
+        pos = interval.last + 1
+    }
+    if (pos <= 0xFFFF) {
+        result.add(CharInterval(pos, 0xFFFF))
+    }
+    return result
 }
 
 /** Internal exception for compile errors. */

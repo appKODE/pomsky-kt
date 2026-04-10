@@ -382,7 +382,7 @@ Shows which features are supported per regex flavor. **P** = polyfilled (expande
 | Named groups | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No |
 | Backreferences | Yes | Yes | Yes | Yes | Yes | Yes | Yes** | No | No | No |
 | Word boundaries | Yes | Yes | ASCII | Yes | Yes | Yes | Yes | Yes | ASCII | No |
-| Char class intersection | Yes | Yes | Yes | No | No | No | Yes | Yes | No | No |
+| Char class intersection | Yes | Yes | Yes | **P** | **P** | **P** | Yes | Yes | **P** | **P** |
 | Recursion | Yes | No | No | No | No | No | Yes | No | No | No |
 | Conditionals*** | Yes | Yes | Yes | Yes | Yes | Yes | Yes* | No | No | No |
 | Permutations | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -390,6 +390,7 @@ Shows which features are supported per regex flavor. **P** = polyfilled (expande
 \* Ruby: lookahead inside lookbehind is not allowed.
 \** Ruby: mixing named and numbered group references is not allowed.
 \*** Conditionals compile to lookahead assertions, so they work in all flavors that support lookahead.
+**P** for char class intersection = polyfilled by computing intersection at compile time. Limited to range/shorthand items — Unicode property intersections still require native `&&` support.
 ASCII = supported in ASCII mode only; Unicode-aware word boundaries are not supported.
 
 ## Optimizations

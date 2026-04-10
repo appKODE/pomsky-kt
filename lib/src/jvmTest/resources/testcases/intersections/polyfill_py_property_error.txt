@@ -1,0 +1,5 @@
+#! expect=error, flavor=Python
+[Letter] & ['a'-'z']
+-----
+ERROR: Unsupported feature `Character set intersections` in the `Python` regex flavor
+SPAN: 0..20

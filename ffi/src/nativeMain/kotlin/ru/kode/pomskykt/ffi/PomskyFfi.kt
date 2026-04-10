@@ -164,7 +164,7 @@ fun pomskyFree(ptr: CPointer<ByteVar>) {
  */
 @CName("pomsky_version")
 fun pomskyVersion(): CPointer<ByteVar> {
-    return allocCString("0.15.0")
+    return allocCString("0.16.0")
 }
 
 internal fun flavorFromInt(value: Int): RegexFlavor = when (value) {

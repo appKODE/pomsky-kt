@@ -2,6 +2,19 @@
 
 All notable changes to pomsky-kt will be documented in this file.
 
+## [0.16.0] - 2026-04-10
+
+### Fixed
+
+- **Decompiler round-trip: 40 → 0 failures** — All 182 round-trip tests now pass with zero skips. Regex → Pomsky → Regex produces correct output for all test cases across all 10 flavors.
+  - **Char class item syntax** — Shorthands (`word`, `digit`, `space`) and properties now emit as bare identifiers inside character classes instead of invalid nested bracket forms like `[![word] 'a'-'f']`. (~20 tests fixed)
+  - **Property name syntax** — Categories use abbreviations (`Nd` not `DecimalNumber`), blocks get `blk:` prefix (`blk:Basic_Latin`), script extensions use `:` separator (`scx:Greek` not `scx=Greek`). (8 tests fixed)
+  - **Intersection syntax** — Character set intersections use top-level `[a] & [b]` operator instead of nested `[[a] & [b]]` brackets. (5 tests fixed)
+  - **Control characters** — Control chars (`\n`, `\r`, `\t`, `\f`) in character classes now emit as `U+0A`, `U+0D`, `U+09`, `U+0C` code points instead of raw bytes in strings.
+  - **`[\s\S]` → `Codepoint`** — Complementary shorthand pairs (e.g., `[\s\S]`, `[\w\W]`) are detected and emitted as `Codepoint` (any character).
+  - **.NET mixed group references** — When both named and unnamed capturing groups exist in .NET flavor, unnamed groups receive synthetic names (`_g1`, `_g3`) to avoid Pomsky's numeric reference restriction. (2 tests fixed)
+  - **Unclosed char classes** — Incomplete regex like `[` now emits as `regex '['` pass-through instead of producing empty `[]` that Pomsky rejects. (1 test fixed)
+
 ## [0.15.0] - 2026-04-10
 
 ### Added

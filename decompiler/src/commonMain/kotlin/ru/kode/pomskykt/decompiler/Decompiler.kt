@@ -29,8 +29,21 @@ object Decompiler {
     ): DecompileResult {
         if (regex.isEmpty()) return DecompileResult(pomsky = "", error = null)
         return try {
-            val ir = parse(regex, flavor)
-            val pomsky = PomskyEmitter().emit(ir)
+            val tokens = RegexLexer(regex, flavor).tokenize()
+            val parser = RegexParser(tokens)
+            val ir = parser.parse()
+
+            // For .NET, rename unnamed groups to synthetic names when both named
+            // and unnamed capturing groups exist (Pomsky forbids numeric refs in this case)
+            val hasNamedGroups = parser.groupNames.isNotEmpty()
+            val hasUnnamedGroups = parser.totalGroups > parser.groupNames.size
+            val needsRename = flavor == RegexFlavor.DotNet && hasNamedGroups && hasUnnamedGroups
+
+            val pomsky = PomskyEmitter(
+                groupNames = parser.groupNames,
+                renameUnnamedGroups = needsRename,
+            ).emit(ir)
+
             DecompileResult(pomsky = pomsky, error = null)
         } catch (e: IllegalArgumentException) {
             DecompileResult(pomsky = null, error = e.message)
@@ -76,7 +89,8 @@ object Decompiler {
         flavor: RegexFlavor = RegexFlavor.Java,
     ): Regex {
         val tokens = RegexLexer(regex, flavor).tokenize()
-        return RegexParser(tokens).parse()
+        val parser = RegexParser(tokens)
+        return parser.parse()
     }
 }
 

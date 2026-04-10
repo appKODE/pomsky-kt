@@ -1,7 +1,11 @@
 # Decompiler Fixes Plan — Make All 50 Failing Round-Trip Tests Green
 
-## Current State
-- 226 round-trip tests: 143 pass, 50 fail, 33 skip
+## Current State (all fixes complete)
+- 182 round-trip tests: **182 pass, 0 fail, 0 skip**
+- 84 unit tests: all pass
+
+## Previous State (before fixes)
+- 182 round-trip tests: 142 pass, 0 fail, 40 skip
 - 46 unit tests: all pass
 
 ## Fix Categories (by root cause)

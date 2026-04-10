@@ -21,6 +21,13 @@ import ru.kode.pomskykt.syntax.unicode.Category
 internal class RegexParser(private val tokens: List<RegexToken>) {
     private var pos = 0
     private var nextGroupIndex = 1
+    private val _groupNames = mutableMapOf<Int, String>()
+
+    /** Map from group index to group name (for named groups). */
+    val groupNames: Map<Int, String> get() = _groupNames
+
+    /** Total number of capturing groups parsed (named + unnamed). */
+    val totalGroups: Int get() = nextGroupIndex - 1
 
     fun parse(): Regex {
         val result = parseAlternation()
@@ -203,7 +210,13 @@ internal class RegexParser(private val tokens: List<RegexToken>) {
             }
             parseCharClassItem(items)
         }
-        if (hasMore()) advance() // skip CloseBracket
+        if (hasMore()) {
+            advance() // skip CloseBracket
+        } else if (items.isEmpty()) {
+            // Unclosed/empty char class — emit as raw regex pass-through
+            val raw = if (negative) "[^" else "["
+            return Regex.Unescaped(raw)
+        }
 
         return Regex.CharSet(RegexCharSet(items, negative))
     }
@@ -304,6 +317,7 @@ internal class RegexParser(private val tokens: List<RegexToken>) {
     private fun parseNamedGroup(name: String): Regex {
         advance() // skip NamedGroup
         val index = nextGroupIndex++
+        _groupNames[index] = name
         val inner = parseAlternation()
         if (hasMore() && peek() is RegexToken.CloseParen) advance()
         return Regex.Group(RegexGroup(listOf(inner), RegexGroupKind.Named(name, index)))

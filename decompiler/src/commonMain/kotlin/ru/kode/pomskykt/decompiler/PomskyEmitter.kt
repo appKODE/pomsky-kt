@@ -18,7 +18,10 @@ import ru.kode.pomskykt.syntax.exprs.LookaroundKind
 /**
  * Emits Pomsky DSL source from [Regex] IR nodes.
  */
-internal class PomskyEmitter {
+internal class PomskyEmitter(
+    private val groupNames: Map<Int, String> = emptyMap(),
+    private val renameUnnamedGroups: Boolean = false,
+) {
     private val buf = StringBuilder()
 
     fun emit(regex: Regex): String {
@@ -132,6 +135,18 @@ internal class PomskyEmitter {
             }
         }
 
+        // [\s\S] or [\S\s] or [\w\W] etc. — shorthand + its negation = Codepoint (any character)
+        if (set.items.size == 2 && !set.negative) {
+            val a = set.items[0]
+            val b = set.items[1]
+            if (a is RegexCharSetItem.Shorthand && b is RegexCharSetItem.Shorthand &&
+                isComplementaryShorthands(a.shorthand, b.shorthand)
+            ) {
+                buf.append("Codepoint")
+                return
+            }
+        }
+
         if (set.negative) buf.append('!')
         buf.append('[')
         var first = true
@@ -146,23 +161,48 @@ internal class PomskyEmitter {
     private fun emitCharSetItem(item: RegexCharSetItem) {
         when (item) {
             is RegexCharSetItem.Char -> {
-                buf.append('\'')
                 when (item.char) {
-                    '\'' -> buf.append("\\'")
-                    '\\' -> buf.append("\\\\")
-                    else -> buf.append(item.char)
+                    '\n', '\r', '\t', '\u000C' -> {
+                        buf.append("U+")
+                        buf.append(item.char.code.toString(HEX_RADIX).uppercase().padStart(2, '0'))
+                    }
+                    else -> {
+                        buf.append('\'')
+                        when (item.char) {
+                            '\'' -> buf.append("\\'")
+                            '\\' -> buf.append("\\\\")
+                            else -> buf.append(item.char)
+                        }
+                        buf.append('\'')
+                    }
                 }
-                buf.append('\'')
             }
             is RegexCharSetItem.Range -> {
-                buf.append('\'')
-                buf.append(item.first)
-                buf.append("'-'")
-                buf.append(item.last)
-                buf.append('\'')
+                val firstIsControl = item.first in CONTROL_CHARS
+                val lastIsControl = item.last in CONTROL_CHARS
+                if (firstIsControl) {
+                    buf.append("U+")
+                    buf.append(item.first.code.toString(HEX_RADIX).uppercase().padStart(2, '0'))
+                } else {
+                    buf.append('\'')
+                    buf.append(item.first)
+                    buf.append('\'')
+                }
+                buf.append('-')
+                if (lastIsControl) {
+                    buf.append("U+")
+                    buf.append(item.last.code.toString(HEX_RADIX).uppercase().padStart(2, '0'))
+                } else {
+                    buf.append('\'')
+                    buf.append(item.last)
+                    buf.append('\'')
+                }
             }
-            is RegexCharSetItem.Shorthand -> buf.append(shorthandToPomsky(item.shorthand))
-            is RegexCharSetItem.Property -> emitPropertyItem(item)
+            is RegexCharSetItem.Shorthand -> buf.append(shorthandToBareName(item.shorthand))
+            is RegexCharSetItem.Property -> {
+                if (item.negative) buf.append('!')
+                emitPropertyName(item.property)
+            }
             is RegexCharSetItem.Literal -> {
                 buf.append('\'')
                 buf.append(item.content.replace("'", "\\'"))
@@ -184,27 +224,31 @@ internal class PomskyEmitter {
 
     private fun emitPropertyName(property: RegexProperty) {
         when (property) {
-            is RegexProperty.CategoryProp -> buf.append(property.category.name)
+            is RegexProperty.CategoryProp -> buf.append(property.category.abbreviation)
             is RegexProperty.ScriptProp -> {
-                val ext = property.extension
-                if (ext == ru.kode.pomskykt.syntax.exprs.ScriptExtension.Yes) {
-                    buf.append("scx=")
+                when (property.extension) {
+                    ru.kode.pomskykt.syntax.exprs.ScriptExtension.Yes -> buf.append("scx:")
+                    ru.kode.pomskykt.syntax.exprs.ScriptExtension.No -> buf.append("sc:")
+                    ru.kode.pomskykt.syntax.exprs.ScriptExtension.Unspecified -> {}
                 }
                 buf.append(property.script.fullName)
             }
-            is RegexProperty.BlockProp -> buf.append(property.block.fullName)
+            is RegexProperty.BlockProp -> {
+                buf.append("blk:")
+                buf.append(property.block.fullName)
+            }
             is RegexProperty.OtherProp -> buf.append(property.property.fullName)
         }
     }
 
     private fun emitCompoundCharSet(set: RegexCompoundCharSet) {
-        if (set.negative) buf.append('!')
-        buf.append('[')
+        // Pomsky intersection uses & as a top-level operator between char sets: [a] & [b]
+        if (set.negative) buf.append("!(")
         set.sets.forEachIndexed { i, charSet ->
             if (i > 0) buf.append(" & ")
             emitCharSet(charSet)
         }
-        buf.append(']')
+        if (set.negative) buf.append(')')
     }
 
     private fun emitGroup(group: RegexGroup, ctx: Context) {
@@ -230,7 +274,13 @@ internal class PomskyEmitter {
                 }
             }
             is RegexGroupKind.Numbered -> {
-                buf.append(":(")
+                if (renameUnnamedGroups) {
+                    buf.append(":_g")
+                    buf.append(kind.index)
+                    buf.append('(')
+                } else {
+                    buf.append(":(")
+                }
                 emitGroupContents(group.parts)
                 buf.append(')')
             }
@@ -384,7 +434,13 @@ internal class PomskyEmitter {
             }
             is RegexReference.Numbered -> {
                 buf.append("::")
-                buf.append(ref.index)
+                // Prefer named reference when available (required for .NET mixed groups)
+                val name = groupNames[ref.index]
+                when {
+                    name != null -> buf.append(name)
+                    renameUnnamedGroups -> { buf.append("_g"); buf.append(ref.index) }
+                    else -> buf.append(ref.index)
+                }
             }
         }
     }
@@ -410,11 +466,34 @@ internal class PomskyEmitter {
         else -> null
     }
 
+    /**
+     * Bare identifier form for use inside character classes: `[word digit !space]`.
+     * Unlike [shorthandToPomsky], this does NOT wrap in brackets.
+     */
+    private fun shorthandToBareName(sh: RegexShorthand): String = when (sh) {
+        RegexShorthand.Word -> "word"
+        RegexShorthand.Digit -> "digit"
+        RegexShorthand.Space -> "space"
+        RegexShorthand.NotWord -> "!word"
+        RegexShorthand.NotDigit -> "!digit"
+        RegexShorthand.NotSpace -> "!space"
+        RegexShorthand.VertSpace -> "vert_space"
+        RegexShorthand.HorizSpace -> "horiz_space"
+    }
+
+    private fun isComplementaryShorthands(a: RegexShorthand, b: RegexShorthand): Boolean {
+        val pair = setOf(a, b)
+        return pair == setOf(RegexShorthand.Space, RegexShorthand.NotSpace) ||
+            pair == setOf(RegexShorthand.Word, RegexShorthand.NotWord) ||
+            pair == setOf(RegexShorthand.Digit, RegexShorthand.NotDigit)
+    }
+
     private enum class Context {
         TOP, SEQUENCE, ALTERNATION, GROUP, REPETITION,
     }
 
     companion object {
         private const val HEX_RADIX = 16
+        private val CONTROL_CHARS = charArrayOf('\n', '\r', '\t', '\u000C')
     }
 }

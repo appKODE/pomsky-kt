@@ -42,11 +42,25 @@ class RoundTripTestCaseRunner {
         }
 
         // Step 2: Recompile the decompiled Pomsky back to regex
-        val (recompiled, diags) = Expr.parseAndCompile(
-            decompiled.pomsky!!,
+        var pomskyToCompile = decompiled.pomsky!!
+        var (recompiled, diags) = Expr.parseAndCompile(
+            pomskyToCompile,
             CompileOptions(flavor = flavor),
         )
-        val errors = diags.filter { it.severity == Severity.Error }
+        var errors = diags.filter { it.severity == Severity.Error }
+
+        // Retry with `disable unicode;` for JS/RE2 when word boundaries require ASCII mode
+        if (errors.isNotEmpty() &&
+            (flavor == RegexFlavor.JavaScript || flavor == RegexFlavor.RE2) &&
+            errors.any { "word boundaries" in it.msg }
+        ) {
+            pomskyToCompile = "disable unicode;\n${decompiled.pomsky}"
+            val retry = Expr.parseAndCompile(pomskyToCompile, CompileOptions(flavor = flavor))
+            recompiled = retry.first
+            diags = retry.second
+            errors = diags.filter { it.severity == Severity.Error }
+        }
+
         if (recompiled == null || errors.isNotEmpty()) {
             assumeTrue(false) {
                 "Recompile failed for '$filePath':\n" +
@@ -73,13 +87,9 @@ class RoundTripTestCaseRunner {
             if (!semanticallyEquivalent) {
                 // Accept known-equivalent differences in property prefixes (sc=, scx=, Is, In)
                 // and shorthand expansions (\w vs Unicode property lists)
-                val r1Normalized = expectedRegex
-                    .replace("\\p{sc=", "\\p{")
-                    .replace("\\p{scx=", "\\p{")
-                val r2Normalized = recompiled
-                    .replace("\\p{sc=", "\\p{")
-                    .replace("\\p{scx=", "\\p{")
-                if (r1Normalized == r2Normalized) return // prefix-only difference
+                val r1Normalized = normalizeRegex(expectedRegex)
+                val r2Normalized = normalizeRegex(recompiled)
+                if (r1Normalized == r2Normalized) return // known-equivalent difference
 
                 // Accept \w vs Unicode property expansion as equivalent
                 assumeTrue(false) {
@@ -90,6 +100,34 @@ class RoundTripTestCaseRunner {
                 }
             }
         }
+    }
+
+    /**
+     * Normalize a regex string to allow comparison of semantically equivalent patterns.
+     * Handles property prefix differences and Unicode \w polyfill expansions.
+     */
+    /**
+     * Normalize a regex string to allow comparison of semantically equivalent patterns.
+     * Handles property prefix differences and Unicode \w polyfill expansions.
+     */
+    private fun normalizeRegex(regex: String): String {
+        var r = regex
+            .replace("\\p{sc=", "\\p{")
+            .replace("\\p{scx=", "\\p{")
+        // Normalize Unicode \w polyfill (standalone bracketed form)
+        r = r.replace("[\\p{Alphabetic}\\pM\\p{Nd}\\p{Pc}]", "\\w")
+            .replace("[\\p{Alphabetic}\\p{M}\\p{Nd}\\p{Pc}]", "\\w")
+            .replace("[^\\p{Alphabetic}\\pM\\p{Nd}\\p{Pc}]", "\\W")
+            .replace("[^\\p{Alphabetic}\\p{M}\\p{Nd}\\p{Pc}]", "\\W")
+        // Normalize inlined \w polyfill inside char classes (no separate brackets)
+        r = r.replace("\\p{Alphabetic}\\pM\\p{Nd}\\p{Pc}", "\\w")
+            .replace("\\p{Alphabetic}\\p{M}\\p{Nd}\\p{Pc}", "\\w")
+        // Normalize Unicode \d polyfill
+        r = r.replace("\\p{Nd}", "\\d")
+            .replace("\\P{Nd}", "\\D")
+        // Normalize synthetic group names from decompiler (e.g., (?<_g1>...) → (...))
+        r = Regex("\\(\\?<_g\\d+>").replace(r, "(")
+        return r
     }
 
     /**

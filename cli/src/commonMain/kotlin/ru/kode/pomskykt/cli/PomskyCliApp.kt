@@ -14,5 +14,10 @@ class PomskyCliApp : CliktCommand(name = "pomsky") {
 }
 
 fun createCli(): PomskyCliApp {
-    return PomskyCliApp().subcommands(CompileCommand())
+    return PomskyCliApp().subcommands(
+        CompileCommand(),
+        MigrateCommand(),
+        ExplainCommand(),
+        ComplexityCommand(),
+    )
 }

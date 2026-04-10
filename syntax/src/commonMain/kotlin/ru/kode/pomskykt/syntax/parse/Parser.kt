@@ -607,6 +607,7 @@ internal class Parser(
     private fun parseAtom(): Rule? {
         return parseConditional()
             ?: parseGroup()
+            ?: parsePermutation()
             ?: parseString()
             ?: parseCharSet()
             ?: parseBoundary()
@@ -707,6 +708,24 @@ internal class Parser(
             return GroupKind.Capturing(Capture(name)) to colonSpan
         }
         return GroupKind.Normal to span()
+    }
+
+    // --- Permutation ---
+
+    private fun parsePermutation(): Rule? {
+        if (!consumeReserved("permute")) return null
+        val startSpan = lastSpan()
+        expect(Token.OpenParen)
+        val parts = mutableListOf<Rule>()
+        recursionStart()
+        while (peekToken() != Token.CloseParen && !isEmpty()) {
+            val part = parseFixes() ?: break
+            parts.add(part)
+        }
+        recursionEnd()
+        expect(Token.CloseParen)
+        val endSpan = lastSpan()
+        return Rule.Perm(Permutation(parts, startSpan.join(endSpan)))
     }
 
     // --- String ---
@@ -1199,6 +1218,7 @@ internal class Parser(
         is Rule.Rgx -> rule.regex.span
         is Rule.Recur -> rule.recursion.span
         is Rule.Cond -> rule.conditional.span
+        is Rule.Perm -> rule.permutation.span
         Rule.Grapheme, Rule.Codepoint, Rule.Dot -> lastSpan()
     }
 }

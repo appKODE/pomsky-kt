@@ -328,6 +328,15 @@ class Validator(val options: CompileOptions) : RuleVisitor {
         }
     }
 
+    override fun visitPermutation(permutation: Permutation) {
+        if (permutation.rules.size > 8) {
+            errors.add(CompileError(
+                CompileErrorKind.PermutationTooLarge(permutation.rules.size),
+                permutation.span,
+            ))
+        }
+    }
+
     override fun visitRecursion(recursion: Recursion) {
         require(PomskyFeatures.RECURSION, recursion.span)
         if (firstRecursion == null) firstRecursion = recursion.span

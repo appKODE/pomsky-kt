@@ -47,6 +47,7 @@ sealed class CompileErrorKind {
     data object NestedQuantifiers : CompileErrorKind()
     data object ConditionalRequiresLookaround : CompileErrorKind()
     data object PythonWordUnicodeHint : CompileErrorKind()
+    data class PermutationTooLarge(val size: Int) : CompileErrorKind()
 }
 
 sealed class IllegalNegationKind {
@@ -139,6 +140,10 @@ fun CompileErrorKind.toMessage(): String = when (this) {
     is CompileErrorKind.PythonWordUnicodeHint ->
         "Python `re` module's `\\w` does not fully match Unicode. " +
             "Consider using the `python_regex` flavor for proper Unicode word matching"
+    is CompileErrorKind.PermutationTooLarge -> {
+        val factorial = (1..size.toLong()).fold(1L) { acc, i -> acc * i }
+        "Permutation with $size elements would generate $factorial alternatives. Maximum is 8 elements."
+    }
 }
 
 /** Display name for a [Feature]. Ported from Rust Feature::name(). */

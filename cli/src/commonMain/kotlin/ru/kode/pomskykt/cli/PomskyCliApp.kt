@@ -19,5 +19,6 @@ fun createCli(): PomskyCliApp {
         MigrateCommand(),
         ExplainCommand(),
         ComplexityCommand(),
+        TestCommand(),
     )
 }

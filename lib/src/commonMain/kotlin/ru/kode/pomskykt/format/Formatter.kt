@@ -50,6 +50,14 @@ object PomskyFormatter {
             is Rule.Rng -> emitRange(rule.range, buf)
             is Rule.Inter -> emitIntersection(rule.intersection, indent, options, buf)
             is Rule.Cond -> emitConditional(rule.conditional, indent, options, buf)
+            is Rule.Perm -> {
+                buf.append("permute(")
+                rule.permutation.rules.forEachIndexed { i, r ->
+                    if (i > 0) buf.append(' ')
+                    emitRule(r, indent, options, buf)
+                }
+                buf.append(')')
+            }
             Rule.Grapheme -> buf.append("Grapheme")
             Rule.Codepoint -> buf.append("Codepoint")
             Rule.Dot -> buf.append('.')

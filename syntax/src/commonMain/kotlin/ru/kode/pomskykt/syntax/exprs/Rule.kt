@@ -24,6 +24,7 @@ sealed class Rule {
     data class Rgx(val regex: Regex) : Rule()
     data class Recur(val recursion: Recursion) : Rule()
     data class Cond(val conditional: Conditional) : Rule()
+    data class Perm(val permutation: Permutation) : Rule()
     data object Grapheme : Rule()
     data object Codepoint : Rule()
     data object Dot : Rule()

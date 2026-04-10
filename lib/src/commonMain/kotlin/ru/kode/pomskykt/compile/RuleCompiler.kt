@@ -40,6 +40,7 @@ private fun spanOf(rule: Rule): Span = when (rule) {
     is Rule.Rgx -> rule.regex.span
     is Rule.Recur -> rule.recursion.span
     is Rule.Cond -> rule.conditional.span
+    is Rule.Perm -> rule.permutation.span
     is Rule.StmtE -> Span.EMPTY
     Rule.Grapheme, Rule.Codepoint, Rule.Dot -> Span.EMPTY
 }
@@ -67,6 +68,7 @@ fun compileRule(rule: Rule, options: CompileOptions, state: CompileState): RIR {
         is Rule.Rgx -> compileRegexLiteral(rule.regex)
         is Rule.Recur -> RIR.Recursion
         is Rule.Cond -> compileConditional(rule.conditional, options, state)
+        is Rule.Perm -> compilePermutation(rule.permutation, options, state)
         Rule.Grapheme -> compileGrapheme(options)
         Rule.Codepoint -> compileCodepoint()
         Rule.Dot -> RIR.Dot
@@ -320,6 +322,7 @@ private fun Rule.spanOrEmpty(): ru.kode.pomskykt.syntax.Span = when (this) {
     is Rule.Neg -> negation.notSpan
     is Rule.Rgx -> regex.span
     is Rule.Recur -> recursion.span
+    is Rule.Perm -> permutation.span
     else -> ru.kode.pomskykt.syntax.Span.EMPTY
 }
 
@@ -570,6 +573,31 @@ private fun compileConditional(cond: Conditional, options: CompileOptions, state
     return RIR.Alt(RegexAlternation(listOf(thenSeq, elseSeq)))
 }
 
+// --- Permutation ---
+
+private fun compilePermutation(perm: Permutation, options: CompileOptions, state: CompileState): RIR {
+    val compiled = perm.rules.map { compileRule(it, options, state) }
+    val orderings = generatePermutations(compiled)
+    val alternatives = orderings.map { ordering ->
+        if (ordering.size == 1) ordering[0]
+        else RIR.Sequence(ordering)
+    }
+    return if (alternatives.size == 1) alternatives[0]
+    else RIR.Alt(RegexAlternation(alternatives))
+}
+
+private fun <T> generatePermutations(items: List<T>): List<List<T>> {
+    if (items.size <= 1) return listOf(items)
+    val result = mutableListOf<List<T>>()
+    for (i in items.indices) {
+        val rest = items.filterIndexed { idx, _ -> idx != i }
+        for (perm in generatePermutations(rest)) {
+            result.add(listOf(items[i]) + perm)
+        }
+    }
+    return result
+}
+
 // --- Reference ---
 
 private fun compileReference(ref: Reference, options: CompileOptions, state: CompileState): RIR {
@@ -787,6 +815,7 @@ private fun checkLetBindingForCaptures(rule: Rule, state: CompileState, span: ru
             throw CompileException(CompileErrorKind.ReferenceInLet, rule.reference.span)
         }
         is Rule.Alt -> rule.alternation.rules.forEach { checkLetBindingForCaptures(it, state, span) }
+        is Rule.Perm -> rule.permutation.rules.forEach { checkLetBindingForCaptures(it, state, span) }
         is Rule.Rep -> checkLetBindingForCaptures(rule.repetition.rule, state, span)
         is Rule.Look -> checkLetBindingForCaptures(rule.lookaround.rule, state, span)
         is Rule.Neg -> checkLetBindingForCaptures(rule.negation.rule, state, span)

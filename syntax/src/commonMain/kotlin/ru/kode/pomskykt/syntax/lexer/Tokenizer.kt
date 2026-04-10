@@ -25,7 +25,7 @@ fun tokenize(input: String): List<Pair<Token, Span>> {
 
 
 private val RESERVED_WORDS = setOf(
-    "U", "let", "lazy", "greedy", "range", "base", "atomic",
+    "U", "let", "lazy", "greedy", "range", "base", "atomic", "permute",
     "enable", "disable", "if", "else", "recursion", "regex", "test", "call",
 )
 

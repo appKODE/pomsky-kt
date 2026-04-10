@@ -20,5 +20,8 @@ fun createCli(): PomskyCliApp {
         ExplainCommand(),
         ComplexityCommand(),
         TestCommand(),
+        VisualizeCommand(),
+        FuzzCommand(),
+        BenchmarkCommand(),
     )
 }

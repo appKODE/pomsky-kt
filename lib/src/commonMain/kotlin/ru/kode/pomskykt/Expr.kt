@@ -12,6 +12,7 @@ import ru.kode.pomskykt.diagnose.getCompileHelp
 import ru.kode.pomskykt.diagnose.getParseHelp
 import ru.kode.pomskykt.diagnose.toMessage
 import ru.kode.pomskykt.options.CompileOptions
+import ru.kode.pomskykt.patterns.PatternLibrary
 import ru.kode.pomskykt.options.RegexFlavor
 import ru.kode.pomskykt.regex.autoAtomize
 import ru.kode.pomskykt.regex.codegen
@@ -140,7 +141,8 @@ class Expr(val rule: Rule) {
             "Codepoint" to codepoint,
             "C" to codepoint,
         )
-        val variables = builtins + extractVariables(rule)
+        val library = if (options.patternLibraryEnabled) PatternLibrary.patterns else emptyList()
+        val variables = builtins + library + extractVariables(rule)
 
         // 4. Compile to regex IR
         val state = CompileState(collector, variables)

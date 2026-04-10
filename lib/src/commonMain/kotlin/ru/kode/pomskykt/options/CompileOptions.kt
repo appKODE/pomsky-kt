@@ -19,4 +19,6 @@ data class CompileOptions(
      * character sets. Only applies to flavors that support atomic groups (PCRE, Java, .NET).
      */
     val autoAtomize: Boolean = false,
+    /** When true, include built-in pattern library variables (email, semver, uuid, etc.). */
+    val patternLibraryEnabled: Boolean = true,
 )

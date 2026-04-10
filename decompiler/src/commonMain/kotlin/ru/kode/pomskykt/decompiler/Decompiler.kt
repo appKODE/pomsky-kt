@@ -40,6 +40,29 @@ object Decompiler {
     }
 
     /**
+     * Explain a regex string in human-readable English.
+     *
+     * @param regex The regex string to explain.
+     * @param flavor The regex flavor (affects parsing of escapes, named groups, etc.).
+     * @return [ExplainResult] with explanation text, or error message on failure.
+     */
+    fun explain(
+        regex: String,
+        flavor: RegexFlavor = RegexFlavor.Java,
+    ): ExplainResult {
+        if (regex.isEmpty()) return ExplainResult(explanation = "empty pattern", error = null)
+        return try {
+            val ir = parse(regex, flavor)
+            val explanation = ExplanationEmitter().explain(ir)
+            ExplainResult(explanation = explanation, error = null)
+        } catch (e: IllegalArgumentException) {
+            ExplainResult(explanation = null, error = e.message)
+        } catch (e: NumberFormatException) {
+            ExplainResult(explanation = null, error = "Invalid escape sequence: ${e.message}")
+        }
+    }
+
+    /**
      * Parse a regex string into the [Regex] IR without emitting Pomsky.
      *
      * Useful for analysis, transformation, or custom emission.
@@ -62,5 +85,13 @@ object Decompiler {
  */
 data class DecompileResult(
     val pomsky: String?,
+    val error: String?,
+)
+
+/**
+ * Result of explaining a regex string in human-readable English.
+ */
+data class ExplainResult(
+    val explanation: String?,
     val error: String?,
 )

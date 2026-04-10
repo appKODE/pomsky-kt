@@ -169,6 +169,30 @@ println(regex) // (?>[0-9]+)abc  — atomic group prevents backtracking
 | `reuse_groups` | `(?J:...)` | PCRE only |
 | `ascii_line_breaks` | `(?d:...)` | PCRE, Java |
 
+## Feature Compatibility
+
+Shows which features are supported per regex flavor. **P** = polyfilled (expanded at compile time).
+
+| Feature | PCRE | Java | JS | .NET | Python | PythonRegex | Ruby | Rust | RE2 | POSIX ERE |
+|---------|------|------|----|------|--------|-------------|------|------|-----|-----------|
+| Unicode properties (`\p{...}`) | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Partial | No |
+| Unicode scripts | Yes | Yes | Yes | No | No | Yes | Yes | Yes | No | No |
+| Script extensions (`scx:`) | Yes | No | Yes | No | No | Yes | Yes | Yes | No | No |
+| Unicode blocks (`blk:`) | Yes | Yes | No | Yes | No | Yes | Yes | Yes | No | No |
+| `[word]` Unicode | **P** | Yes | **P** | **P** | Warn | **P** | Yes | Yes | Yes | No |
+| `\p{LC}` (Cased_Letter) | Yes | Yes | Yes | **P** | No | Yes | Yes | Yes | No | No |
+| Lookahead | Yes | Yes | Yes | Yes | Yes | Yes | Yes* | No | No | No |
+| Lookbehind | Yes | Yes | Yes | Yes | Yes | Yes | Yes* | No | No | No |
+| Atomic groups | Yes | Yes | No | Yes | No | Yes | No | No | No | No |
+| Named groups | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No |
+| Backreferences | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No |
+| Word boundaries (Unicode) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No |
+| Char class intersection | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Recursion | Yes | No | No | No | No | No | Yes | No | No | No |
+| Conditionals | Yes | No | No | No | No | No | No | No | No | No |
+
+\* Ruby: lookahead inside lookbehind is not allowed.
+
 ## Optimizations
 
 The compiler applies several optimization passes automatically:

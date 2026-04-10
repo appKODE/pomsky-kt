@@ -156,6 +156,29 @@ class LinterTest {
         assertNoWarning(diags, "Quantifier on anchor")
     }
 
+    // --- Rule 7: Quantifier on lookaround ---
+
+    @Test
+    fun quantifierOnLookahead() {
+        val (result, diags) = compile("(>> 'x')+")
+        assertNotNull(result)
+        assertHasWarning(diags, "Quantifier on lookaround")
+    }
+
+    @Test
+    fun quantifierOnLookbehind() {
+        val (result, diags) = compile("(<< 'y')*")
+        assertNotNull(result)
+        assertHasWarning(diags, "Quantifier on lookaround")
+    }
+
+    @Test
+    fun noWarningForLookaroundWithoutQuantifier() {
+        val (result, diags) = compile("(>> 'x') 'a'")
+        assertNotNull(result)
+        assertNoWarning(diags, "Quantifier on lookaround")
+    }
+
     // --- Helpers ---
 
     private fun compile(

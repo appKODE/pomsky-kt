@@ -47,9 +47,10 @@ class AlternationFactoringTest {
     @Test
     fun noCommonPrefixUnchanged() {
         // [digit] | [word] -> stays as-is (no literal prefix to factor)
+        // Use Java flavor where \w is not polyfilled
         val (result, diags, _) = Expr.parseAndCompile(
             "[digit] | [word]",
-            CompileOptions(flavor = RegexFlavor.Pcre),
+            CompileOptions(flavor = RegexFlavor.Java),
         )
         assertNotNull(result, "Expected compilation to succeed")
         assertTrue(diags.none { it.severity == Severity.Error })

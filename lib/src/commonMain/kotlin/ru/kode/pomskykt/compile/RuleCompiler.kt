@@ -396,7 +396,7 @@ private fun namedClassToItems(
                 items.add(RegexCharSetItem.Char('_'))
                 items.add(RegexCharSetItem.Range('a', 'z'))
                 if (negative) setNegative = true
-            } else if (unicodeAware && (flavor == RegexFlavor.JavaScript || flavor == RegexFlavor.DotNet || flavor == RegexFlavor.PythonRegex)) {
+            } else if (unicodeAware && (flavor == RegexFlavor.JavaScript || flavor == RegexFlavor.DotNet || flavor == RegexFlavor.PythonRegex || flavor == RegexFlavor.Pcre)) {
                 // JS/DotNet/PythonRegex unicode: \w → [\p{Alphabetic}\p{M}\p{Nd}\p{Pc}]
                 items.add(RegexCharSetItem.Property(RegexProperty.OtherProp(OtherProperties.Alphabetic), false))
                 items.add(RegexCharSetItem.Property(RegexProperty.CategoryProp(Category.Mark), false))
@@ -470,7 +470,15 @@ private fun namedClassToItems(
             if (negative) setNegative = true
         }
         is GroupName.CategoryName -> {
-            items.add(RegexCharSetItem.Property(RegexProperty.CategoryProp(name.category), negative))
+            if (flavor == RegexFlavor.DotNet && name.category == Category.CasedLetter) {
+                // .NET doesn't support \p{LC}, expand to constituent categories
+                items.add(RegexCharSetItem.Property(RegexProperty.CategoryProp(Category.UppercaseLetter), false))
+                items.add(RegexCharSetItem.Property(RegexProperty.CategoryProp(Category.LowercaseLetter), false))
+                items.add(RegexCharSetItem.Property(RegexProperty.CategoryProp(Category.TitlecaseLetter), false))
+                if (negative) setNegative = true
+            } else {
+                items.add(RegexCharSetItem.Property(RegexProperty.CategoryProp(name.category), negative))
+            }
         }
         is GroupName.ScriptName -> {
             val ext = when (name.extension) {

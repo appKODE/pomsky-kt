@@ -46,6 +46,7 @@ sealed class CompileErrorKind {
     data object EmptyIntersection : CompileErrorKind()
     data object NestedQuantifiers : CompileErrorKind()
     data object ConditionalRequiresLookaround : CompileErrorKind()
+    data object PythonWordUnicodeHint : CompileErrorKind()
 }
 
 sealed class IllegalNegationKind {
@@ -135,6 +136,9 @@ fun CompileErrorKind.toMessage(): String = when (this) {
         "This expression may cause catastrophic backtracking (ReDoS) due to nested quantifiers"
     is CompileErrorKind.ConditionalRequiresLookaround ->
         "Conditional requires a lookaround assertion as condition"
+    is CompileErrorKind.PythonWordUnicodeHint ->
+        "Python `re` module's `\\w` does not fully match Unicode. " +
+            "Consider using the `python_regex` flavor for proper Unicode word matching"
 }
 
 /** Display name for a [Feature]. Ported from Rust Feature::name(). */

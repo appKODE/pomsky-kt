@@ -97,6 +97,7 @@ class Expr(val rule: Rule) {
         for (err in validator.compileErrors) {
             val severity = when (err.kind) {
                 is CompileErrorKind.NestedQuantifiers -> Severity.Warning
+                is CompileErrorKind.PythonWordUnicodeHint -> Severity.Warning
                 else -> Severity.Error
             }
             diagnostics.add(Diagnostic(

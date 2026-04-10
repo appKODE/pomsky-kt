@@ -21,7 +21,8 @@ class AutoAtomizeTest {
     fun wordPlusColonDigitPlus() {
         // [word]+ ':' [digit]+ -> word followed by ':' is disjoint, so atomize first rep.
         // The trailing [digit]+ has no following element, so it is NOT atomized.
-        val result = compileAtomized("[word]+ ':' [digit]+", RegexFlavor.Pcre)
+        // Use Java flavor where \w is not polyfilled to test atomization logic cleanly.
+        val result = compileAtomized("[word]+ ':' [digit]+", RegexFlavor.Java)
         assertEquals("(?>\\w+):\\d+", result)
     }
 

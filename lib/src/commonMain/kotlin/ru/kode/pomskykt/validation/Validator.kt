@@ -228,6 +228,10 @@ class Validator(val options: CompileOptions) : RuleVisitor {
                     ) {
                         unsupported(Feature.NegativeShorthandW, span)
                     }
+                    // Python unicode mode: hint about \w not being fully Unicode
+                    if (charClass.unicodeAware && flavor() == RegexFlavor.Python) {
+                        errors.add(CompileError(CompileErrorKind.PythonWordUnicodeHint, span))
+                    }
                 }
                 is GroupName.Space -> {
                     if (item.negative && !charClass.unicodeAware) {

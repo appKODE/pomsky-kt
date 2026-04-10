@@ -141,13 +141,14 @@ class ExprTest {
     @Test
     fun compileCharClassShorthand() {
         val (result, _) = compileOk("[w]")
-        assertEquals("\\w", result)
+        // PCRE (default) polyfills \w to Unicode properties
+        assertEquals("[\\p{Alphabetic}\\pM\\p{Nd}\\p{Pc}]", result)
     }
 
     @Test
     fun compileCharClassNegatedShorthand() {
         val (result, _) = compileOk("[!w]")
-        assertEquals("\\W", result)
+        assertEquals("[^\\p{Alphabetic}\\pM\\p{Nd}\\p{Pc}]", result)
     }
 
     @Test
@@ -203,7 +204,7 @@ class ExprTest {
     @Test
     fun compileNegatedCharClass() {
         val (result, _) = compileOk("![w]")
-        assertEquals("\\W", result)
+        assertEquals("[^\\p{Alphabetic}\\pM\\p{Nd}\\p{Pc}]", result)
     }
 
     @Test

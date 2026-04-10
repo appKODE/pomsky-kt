@@ -27,15 +27,16 @@ class EmptyNegatedGroupTest {
 
     @Test
     fun negatedWordDigitSpaceProducesErrorPcre() {
-        // Same check for Pcre flavor
+        // With PCRE unicode polyfill, [word] expands to properties so negation succeeds.
+        // Use Java flavor where \w remains a shorthand and negation produces empty class error.
         val (result, diags, _) = Expr.parseAndCompile(
             "![word digit space]",
-            CompileOptions(flavor = RegexFlavor.Pcre),
+            CompileOptions(flavor = RegexFlavor.Java),
         )
-        assertNull(result, "Expected compilation to fail for ![word digit space] in Pcre")
+        assertNull(result, "Expected compilation to fail for ![word digit space] in Java")
         assertTrue(
             diags.any { it.severity == Severity.Error },
-            "Expected error diagnostic for empty negated class in Pcre",
+            "Expected error diagnostic for empty negated class in Java",
         )
     }
 

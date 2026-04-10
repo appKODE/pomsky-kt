@@ -27,6 +27,7 @@ class Linter : RuleVisitor {
         checkUnnecessaryRepetition(repetition)
         checkRedundantNestedRepetition(repetition)
         checkQuantifierOnAnchor(repetition)
+        checkQuantifierOnLookaround(repetition)
     }
 
     override fun visitGroup(group: Group) {
@@ -156,6 +157,28 @@ class Linter : RuleVisitor {
                 Diagnostic(
                     severity = Severity.Warning,
                     msg = "Quantifier on anchor or boundary assertion has no meaningful effect",
+                    span = repetition.span,
+                    kind = DiagnosticKind.Other,
+                )
+            )
+        }
+    }
+
+    /**
+     * Rule 7: Quantifier on lookaround.
+     *
+     * `(>> 'x')+` or `(<< 'y')*` — lookarounds are zero-width assertions,
+     * quantifying them is almost always a mistake.
+     */
+    private fun checkQuantifierOnLookaround(repetition: Repetition) {
+        val inner = repetition.rule
+        val isLookaround = inner is Rule.Look ||
+            (inner is Rule.Grp && inner.group.parts.size == 1 && inner.group.parts[0] is Rule.Look)
+        if (isLookaround) {
+            warnings.add(
+                Diagnostic(
+                    severity = Severity.Warning,
+                    msg = "Quantifier on lookaround assertion has no meaningful effect",
                     span = repetition.span,
                     kind = DiagnosticKind.Other,
                 )

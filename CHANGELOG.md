@@ -2,6 +2,16 @@
 
 All notable changes to pomsky-kt will be documented in this file.
 
+## [0.18.0] - 2026-04-11
+
+### Improved
+
+- **Test generator: varied examples** — `TestGenerator.generate()` now produces diverse, realistic test strings instead of minimal single-character output.
+  - **Cross-combination**: Sequences with alternation now generate examples for all branches. `(feat|fix|chore):.*` produces `"feat:hello"`, `"fix:test"`, `"chore:example"` instead of just `"feat:"`.
+  - **Dot sample texts**: `.*` and `.+` use built-in sample texts (`"hello"`, `"test"`, `"example"`) instead of `"x"` / `"xxx"`.
+  - **Custom corpus**: New `TestGeneratorOptions(sampleTexts = listOf("add login", "fix bug"))` lets users provide domain-specific text for generic positions.
+  - **Non-empty first for optional**: Star (`*`) and optional (`?`) quantifiers now return non-empty samples first, so sequence combinations are more useful by default. Empty string is still included.
+
 ## [0.17.0] - 2026-04-11
 
 ### Improved

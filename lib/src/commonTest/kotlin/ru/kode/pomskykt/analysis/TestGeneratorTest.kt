@@ -126,12 +126,14 @@ class TestGeneratorTest {
     }
 
     @Test
-    fun starRepetitionIncludesEmpty() {
+    fun starRepetitionIncludesEmptyAndNonEmpty() {
         val inner = Regex.Literal("x")
         val ir = Regex.Rep(RegexRepetition(inner = inner, lower = 0, upper = null, greedy = true))
         val result = TestGenerator.generate(ir)
-        assertTrue(result.matching.contains(""))
-        assertTrue(result.matching.any { it.isNotEmpty() })
+        assertTrue(result.matching.contains(""), "Should include empty string")
+        assertTrue(result.matching.any { it.isNotEmpty() }, "Should include non-empty strings")
+        // Non-empty samples should come before empty for better sequence combinations
+        assertTrue(result.matching.first().isNotEmpty(), "First sample should be non-empty")
     }
 
     @Test
@@ -146,7 +148,8 @@ class TestGeneratorTest {
     @Test
     fun dotGeneratesSingleChar() {
         val result = TestGenerator.generate(Regex.Dot)
-        assertTrue(result.matching.contains("x"))
+        assertTrue(result.matching.isNotEmpty(), "Dot should generate samples")
+        assertTrue(result.matching.all { it.length == 1 }, "Dot samples should be single chars")
     }
 
     @Test
@@ -189,6 +192,91 @@ class TestGeneratorTest {
         )
         val result = TestGenerator.generate(ir)
         assertTrue(result.matching.containsAll(listOf("a", "Z", "0")))
+    }
+
+    @Test
+    fun sequenceCrossCombiresAlternationVariants() {
+        // Pattern like (feat|fix|chore):.*
+        val alt = Regex.Alt(
+            RegexAlternation(
+                alternatives = listOf(
+                    Regex.Literal("feat"),
+                    Regex.Literal("fix"),
+                    Regex.Literal("chore"),
+                )
+            )
+        )
+        val ir = Regex.Sequence(
+            parts = listOf(
+                alt,
+                Regex.Literal(":"),
+            )
+        )
+        val result = TestGenerator.generate(ir)
+        assertTrue(result.matching.contains("feat:"), "Should contain 'feat:', got: ${result.matching}")
+        assertTrue(result.matching.contains("fix:"), "Should contain 'fix:', got: ${result.matching}")
+        assertTrue(result.matching.contains("chore:"), "Should contain 'chore:', got: ${result.matching}")
+    }
+
+    @Test
+    fun dotStarUsesDefaultSampleTexts() {
+        val ir = Regex.Rep(RegexRepetition(inner = Regex.Dot, lower = 0, upper = null, greedy = true))
+        val result = TestGenerator.generate(ir)
+        assertTrue(result.matching.any { it.length > 1 }, "Should have multi-char samples, got: ${result.matching}")
+        assertTrue(result.matching.contains(""), "Should include empty for star")
+    }
+
+    @Test
+    fun dotPlusUsesDefaultSampleTexts() {
+        val ir = Regex.Rep(RegexRepetition(inner = Regex.Dot, lower = 1, upper = null, greedy = true))
+        val result = TestGenerator.generate(ir)
+        assertTrue(result.matching.all { it.isNotEmpty() }, "Plus should not include empty, got: ${result.matching}")
+        assertTrue(result.matching.any { it.length > 1 }, "Should have multi-char samples, got: ${result.matching}")
+    }
+
+    @Test
+    fun customSampleTextsUsedForDotStar() {
+        val ir = Regex.Sequence(
+            parts = listOf(
+                Regex.Literal("prefix:"),
+                Regex.Rep(RegexRepetition(inner = Regex.Dot, lower = 0, upper = null, greedy = true)),
+            )
+        )
+        val options = TestGeneratorOptions(sampleTexts = listOf("add login", "fix bug"))
+        val result = TestGenerator.generate(ir, options)
+        assertTrue(
+            result.matching.any { it.startsWith("prefix:") && it.contains("add login") },
+            "Should use custom sample text, got: ${result.matching}"
+        )
+    }
+
+    @Test
+    fun conventionalCommitPattern() {
+        // (feat|fix|chore):.*
+        val ir = Regex.Sequence(
+            parts = listOf(
+                Regex.Alt(
+                    RegexAlternation(
+                        alternatives = listOf(
+                            Regex.Literal("feat"),
+                            Regex.Literal("fix"),
+                            Regex.Literal("chore"),
+                        )
+                    )
+                ),
+                Regex.Literal(":"),
+                Regex.Rep(RegexRepetition(inner = Regex.Dot, lower = 0, upper = null, greedy = true)),
+            )
+        )
+        val result = TestGenerator.generate(ir)
+        // Should have varied prefixes, not just "feat:"
+        val prefixes = result.matching.map { it.substringBefore(":") }.distinct()
+        assertTrue(prefixes.size >= 3, "Should cover all alternation branches, got prefixes: $prefixes")
+        // Should have non-empty content after colon for some
+        assertTrue(
+            result.matching.any { it.contains(":") && it.substringAfter(":").isNotEmpty() },
+            "Should have content after colon, got: ${result.matching}"
+        )
     }
 
     @Test

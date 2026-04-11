@@ -24,11 +24,15 @@ data class GeneratedTests(
  * @param maxExamples maximum number of matching/non-matching examples to return
  * @param unboundedRepeatSamples repeat counts to use for unbounded quantifiers (e.g. `+`, `*`)
  * @param coverAllBranches if true, generate at least one sample per alternation branch
+ * @param sampleTexts custom text samples used for generic positions (`.`, `.*`, `.+`).
+ *   When provided, these are used instead of the built-in defaults.
+ *   Example: `listOf("add login page", "update deps", "fix bug")` for commit message patterns.
  */
 data class TestGeneratorOptions(
     val maxExamples: Int = 10,
     val unboundedRepeatSamples: List<Int> = listOf(1, 3),
     val coverAllBranches: Boolean = true,
+    val sampleTexts: List<String> = emptyList(),
 )
 
 /**
@@ -40,6 +44,8 @@ data class TestGeneratorOptions(
  * and recursion are approximated with placeholders).
  */
 object TestGenerator {
+
+    private val DEFAULT_SAMPLE_TEXTS = listOf("hello", "test", "example")
 
     /**
      * Generate sample matching and non-matching strings for the given [regex] IR.
@@ -55,7 +61,7 @@ object TestGenerator {
     private fun generateMatching(regex: Regex, options: TestGeneratorOptions): List<String> {
         return when (regex) {
             is Regex.Literal -> listOf(regex.content)
-            is Regex.Dot -> listOf("x")
+            is Regex.Dot -> dotSamples(options).map { it.take(1) }.filter { it.isNotEmpty() }.ifEmpty { listOf("x") }
             is Regex.Grapheme -> listOf("a")
             is Regex.CharSet -> generateMatchingCharSet(regex.set)
             is Regex.CompoundCharSet -> generateMatchingCompoundCharSet(regex.set)
@@ -95,11 +101,28 @@ object TestGenerator {
 
     private fun generateMatchingSequence(parts: List<Regex>, options: TestGeneratorOptions): List<String> {
         if (parts.isEmpty()) return listOf("")
-        // Take one sample from each part and concatenate
         val partSamples = parts.map { generateMatching(it, options) }
-        // Generate a single concatenation using the first sample from each part
-        val base = partSamples.map { it.firstOrNull() ?: "" }.joinToString("")
-        return listOf(base)
+
+        // Find the part with the most variants (typically alternation or repetition)
+        val maxVariants = partSamples.maxOf { it.size }
+        if (maxVariants <= 1) {
+            // Simple case: one sample per part, just concatenate
+            return listOf(partSamples.map { it.firstOrNull() ?: "" }.joinToString(""))
+        }
+
+        // Cross-combine: rotate through the variant-rich parts while keeping others at defaults
+        val results = mutableListOf<String>()
+        for (i in 0 until maxVariants) {
+            val combined = partSamples.map { samples ->
+                if (samples.size > 1) {
+                    samples[i % samples.size]
+                } else {
+                    samples.firstOrNull() ?: ""
+                }
+            }.joinToString("")
+            results.add(combined)
+        }
+        return results.distinct()
     }
 
     private fun generateMatchingAlt(alternation: RegexAlternation, options: TestGeneratorOptions): List<String> {
@@ -113,27 +136,44 @@ object TestGenerator {
     }
 
     private fun generateMatchingRep(repetition: RegexRepetition, options: TestGeneratorOptions): List<String> {
-        val innerSamples = generateMatching(repetition.inner, options)
+        val inner = repetition.inner
+        val innerSamples = generateMatching(inner, options)
         val innerSample = innerSamples.firstOrNull() ?: ""
         val lower = repetition.lower
         val upper = repetition.upper
 
+        // For Dot-based unbounded repetitions (.* or .+), use sample texts for realistic output
+        val isAnyChar = inner is Regex.Dot
+        val texts = dotSamples(options)
+
         return when {
-            // Star: lower=0, upper=null
+            // Star: lower=0, upper=null — prefer non-empty first for better sequence combinations
             lower == 0 && upper == null -> {
-                listOf("") + options.unboundedRepeatSamples.map { count ->
-                    innerSample.repeat(count)
+                if (isAnyChar) {
+                    texts + listOf("")
+                } else {
+                    options.unboundedRepeatSamples.map { count ->
+                        innerSample.repeat(count)
+                    } + listOf("")
                 }
             }
             // Plus: lower=1, upper=null
             lower >= 1 && upper == null -> {
-                options.unboundedRepeatSamples.map { count ->
-                    innerSample.repeat(maxOf(lower, count))
-                } + listOf(innerSample.repeat(lower + 2))
+                if (isAnyChar) {
+                    texts.ifEmpty {
+                        options.unboundedRepeatSamples.map { count ->
+                            innerSample.repeat(maxOf(lower, count))
+                        }
+                    }
+                } else {
+                    options.unboundedRepeatSamples.map { count ->
+                        innerSample.repeat(maxOf(lower, count))
+                    } + listOf(innerSample.repeat(lower + 2))
+                }
             }
-            // Optional: lower=0, upper=1
+            // Optional: lower=0, upper=1 — prefer non-empty first
             lower == 0 && upper == 1 -> {
-                listOf("", innerSample)
+                listOf(innerSample, "")
             }
             // Exact: lower==upper
             upper != null && lower == upper -> {
@@ -316,6 +356,10 @@ object TestGenerator {
             RegexShorthand.VertSpace -> listOf("a")
             RegexShorthand.HorizSpace -> listOf("a")
         }
+    }
+
+    private fun dotSamples(options: TestGeneratorOptions): List<String> {
+        return options.sampleTexts.ifEmpty { DEFAULT_SAMPLE_TEXTS }
     }
 
     private fun StringBuilder.appendCodePoint(codePoint: Int) {

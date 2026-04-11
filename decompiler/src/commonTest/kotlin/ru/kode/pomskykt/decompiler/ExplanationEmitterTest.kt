@@ -56,16 +56,15 @@ class ExplanationEmitterTest {
     fun explainLookahead() {
         val result = explain("(?=\\d)")
         assertNotNull(result)
-        assertTrue(result.contains("followed by"), "Expected 'followed by', got: $result")
+        assertTrue(result.contains("if followed by"), "Expected 'if followed by', got: $result")
         assertTrue(result.contains("digit"), "Expected 'digit', got: $result")
-        assertTrue(result.contains("without consuming"), "Expected 'without consuming', got: $result")
     }
 
     @Test
     fun explainNamedGroup() {
         val result = explain("(?P<year>\\d{4})")
         assertNotNull(result)
-        assertTrue(result.contains("captured as"), "Expected 'captured as', got: $result")
+        assertTrue(result.contains("saved as"), "Expected 'saved as', got: $result")
         assertTrue(result.contains("year"), "Expected 'year', got: $result")
         assertTrue(result.contains("exactly 4"), "Expected 'exactly 4', got: $result")
     }

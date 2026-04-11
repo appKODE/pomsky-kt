@@ -32,7 +32,7 @@ internal class ExplanationEmitter {
             is Regex.Unescaped -> emitUnescaped(regex.content)
             is Regex.CharSet -> emitCharSet(regex.set)
             is Regex.CompoundCharSet -> emitCompoundCharSet(regex.set)
-            is Regex.Grapheme -> buf.append("a grapheme cluster")
+            is Regex.Grapheme -> buf.append("a single visible character (grapheme)")
             is Regex.Dot -> buf.append("any character")
             is Regex.Group -> emitGroup(regex.group, ctx)
             is Regex.Sequence -> emitSequence(regex.parts, ctx)
@@ -41,7 +41,7 @@ internal class ExplanationEmitter {
             is Regex.Bound -> emitBoundary(regex.kind)
             is Regex.Look -> emitLookaround(regex.lookaround, ctx)
             is Regex.Ref -> emitReference(regex.reference)
-            is Regex.Recursion -> buf.append("the entire pattern (recursively)")
+            is Regex.Recursion -> buf.append("the whole pattern repeated inside itself")
             is Regex.ModeGroup -> emitNode(regex.inner, ctx)
         }
     }
@@ -54,7 +54,7 @@ internal class ExplanationEmitter {
     }
 
     private fun emitUnescaped(content: String) {
-        buf.append("raw regex: ")
+        buf.append("literal regex pattern: ")
         buf.append(content)
     }
 
@@ -187,12 +187,12 @@ internal class ExplanationEmitter {
                 emitNode(inner, ctx)
             }
             is RegexGroupKind.Numbered -> {
-                buf.append("captured as group ${kind.index}: ")
                 emitGroupContents(group.parts)
+                buf.append(" (saved as group ${kind.index})")
             }
             is RegexGroupKind.Named -> {
-                buf.append("captured as \"${kind.name}\": ")
                 emitGroupContents(group.parts)
+                buf.append(" (saved as \"${kind.name}\")")
             }
             is RegexGroupKind.Atomic -> {
                 emitGroupContents(group.parts)
@@ -260,26 +260,41 @@ internal class ExplanationEmitter {
             }
         }
 
+        // Try to use natural plural phrasing for simple char sets
+        val plural = if (inner is Regex.CharSet) charSetPluralNoun(inner.set) else null
+
         when {
             rep.lower == 0 && rep.upper == 1 -> {
                 buf.append("optionally ")
                 emitNode(inner, Context.REPETITION)
             }
             rep.lower == 0 && rep.upper == null -> {
-                buf.append("zero or more of ")
-                emitNode(inner, Context.REPETITION)
+                if (plural != null) {
+                    buf.append("any number of $plural")
+                } else {
+                    buf.append("any number of ")
+                    emitNode(inner, Context.REPETITION)
+                }
             }
             rep.lower == 1 && rep.upper == null -> {
-                buf.append("one or more of ")
-                emitNode(inner, Context.REPETITION)
+                if (plural != null) {
+                    buf.append("one or more $plural")
+                } else {
+                    buf.append("one or more of ")
+                    emitNode(inner, Context.REPETITION)
+                }
             }
             rep.lower == rep.upper -> {
                 buf.append("exactly ${rep.lower} of ")
                 emitNode(inner, Context.REPETITION)
             }
             rep.upper == null -> {
-                buf.append("${rep.lower} or more of ")
-                emitNode(inner, Context.REPETITION)
+                if (plural != null) {
+                    buf.append("${rep.lower} or more $plural")
+                } else {
+                    buf.append("${rep.lower} or more of ")
+                    emitNode(inner, Context.REPETITION)
+                }
             }
             else -> {
                 buf.append("between ${rep.lower} and ${rep.upper} of ")
@@ -295,8 +310,8 @@ internal class ExplanationEmitter {
             when (kind) {
                 BoundaryKind.Start -> "start of string"
                 BoundaryKind.End -> "end of string"
-                BoundaryKind.Word -> "a word boundary"
-                BoundaryKind.NotWord -> "a non-word boundary"
+                BoundaryKind.Word -> "a word boundary (start or end of a word)"
+                BoundaryKind.NotWord -> "a non-word boundary (middle of a word)"
                 BoundaryKind.WordStart -> "start of word"
                 BoundaryKind.WordEnd -> "end of word"
             }
@@ -306,21 +321,19 @@ internal class ExplanationEmitter {
     private fun emitLookaround(look: RegexLookaround, ctx: Context) {
         when (look.kind) {
             LookaroundKind.Ahead -> {
-                buf.append("followed by ")
+                buf.append("if followed by ")
                 emitNode(look.inner, Context.GROUP)
-                buf.append(" (without consuming)")
             }
             LookaroundKind.AheadNegative -> {
-                buf.append("not followed by ")
+                buf.append("if not followed by ")
                 emitNode(look.inner, Context.GROUP)
             }
             LookaroundKind.Behind -> {
-                buf.append("preceded by ")
+                buf.append("if preceded by ")
                 emitNode(look.inner, Context.GROUP)
-                buf.append(" (without consuming)")
             }
             LookaroundKind.BehindNegative -> {
-                buf.append("not preceded by ")
+                buf.append("if not preceded by ")
                 emitNode(look.inner, Context.GROUP)
             }
         }
@@ -329,23 +342,23 @@ internal class ExplanationEmitter {
     private fun emitReference(ref: RegexReference) {
         when (ref) {
             is RegexReference.Named -> {
-                buf.append("same text as captured in \"${ref.name}\"")
+                buf.append("the same \"${ref.name}\" text again")
             }
             is RegexReference.Numbered -> {
-                buf.append("same text as group ${ref.index}")
+                buf.append("the same group ${ref.index} text again")
             }
         }
     }
 
     private fun shorthandDescription(sh: RegexShorthand): String = when (sh) {
-        RegexShorthand.Word -> "a word character"
+        RegexShorthand.Word -> "a word character (letter, digit, or underscore)"
         RegexShorthand.Digit -> "a digit (0-9)"
-        RegexShorthand.Space -> "a whitespace character"
+        RegexShorthand.Space -> "a whitespace character (space, tab, newline)"
         RegexShorthand.NotWord -> "a non-word character"
         RegexShorthand.NotDigit -> "a non-digit character"
         RegexShorthand.NotSpace -> "a non-whitespace character"
-        RegexShorthand.VertSpace -> "a vertical whitespace character"
-        RegexShorthand.HorizSpace -> "a horizontal whitespace character"
+        RegexShorthand.VertSpace -> "a vertical whitespace character (newline, etc.)"
+        RegexShorthand.HorizSpace -> "a horizontal whitespace character (space, tab)"
     }
 
     private fun negatedShorthandDescription(sh: RegexShorthand): String = when (sh) {
@@ -360,7 +373,7 @@ internal class ExplanationEmitter {
     }
 
     private fun shorthandBrief(sh: RegexShorthand): String = when (sh) {
-        RegexShorthand.Word -> "word character"
+        RegexShorthand.Word -> "word character (letter/digit/_)"
         RegexShorthand.Digit -> "digit (0-9)"
         RegexShorthand.Space -> "whitespace"
         RegexShorthand.NotWord -> "non-word character"
@@ -371,7 +384,7 @@ internal class ExplanationEmitter {
     }
 
     private fun shorthandPlural(sh: RegexShorthand): String = when (sh) {
-        RegexShorthand.Word -> "word characters"
+        RegexShorthand.Word -> "word characters (letters, digits, or underscores)"
         RegexShorthand.Digit -> "digits (0-9)"
         RegexShorthand.Space -> "whitespace characters"
         RegexShorthand.NotWord -> "non-word characters"

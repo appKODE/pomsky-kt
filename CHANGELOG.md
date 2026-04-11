@@ -2,6 +2,19 @@
 
 All notable changes to pomsky-kt will be documented in this file.
 
+## [0.17.0] - 2026-04-11
+
+### Improved
+
+- **Regex explanation readability** — `Decompiler.explain()` now generates friendlier, less technical descriptions:
+  - Groups: content-first phrasing — `exactly 4 digits (0-9) (saved as "year")` instead of `captured as "year": exactly 4 digits (0-9)`
+  - Lookaround: `if followed by ...` / `if not preceded by ...` instead of `followed by ... (without consuming)`
+  - Repetition: natural plurals — `one or more digits (0-9)`, `any number of word characters` instead of `one or more of a digit (0-9)`, `zero or more of a word character`
+  - References: `the same "name" text again` instead of `same text as captured in "name"`
+  - Word characters: hints added — `a word character (letter, digit, or underscore)`, `a whitespace character (space, tab, newline)`
+  - Boundaries: hints added — `a word boundary (start or end of a word)`
+  - Special nodes: `a single visible character (grapheme)` instead of `a grapheme cluster`
+
 ## [0.16.0] - 2026-04-10
 
 ### Fixed

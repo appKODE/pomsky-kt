@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 class ExprTest {
     @Test
     fun version() {
-        assertEquals("0.16.0", Expr.VERSION)
+        assertEquals("0.17.0", Expr.VERSION)
     }
 
     // --- Parse tests ---

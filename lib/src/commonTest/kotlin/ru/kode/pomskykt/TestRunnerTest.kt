@@ -5,6 +5,7 @@ import ru.kode.pomskykt.options.CompileOptions
 import ru.kode.pomskykt.options.RegexFlavor
 import ru.kode.pomskykt.syntax.exprs.TestCase
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -65,5 +66,22 @@ class TestRunnerTest {
         assertNotNull(result)
         assertTrue(tests.isNotEmpty())
         assertTrue(tests[0].cases.size >= 3, "Expected at least 3 test cases")
+    }
+
+    @Test
+    fun parseAndCompileExposesTestStrings() {
+        val (result, _, tests) = Expr.parseAndCompile(
+            "test { match 'feat: add'; match 'fix: bug'; reject 'docs: x'; } ('feat' | 'fix') ': ' .+",
+            CompileOptions(flavor = RegexFlavor.Java),
+        )
+        assertNotNull(result)
+        val strings = tests.flatMap { it.cases }.map { case ->
+            when (case) {
+                is TestCase.Match -> "match:" + case.testCaseMatch.literal.content
+                is TestCase.MatchAll -> "matchAll:" + case.testCaseMatchAll.literal.content
+                is TestCase.Reject -> "reject:" + case.testCaseReject.literal.content
+            }
+        }
+        assertEquals(listOf("match:feat: add", "match:fix: bug", "reject:docs: x"), strings)
     }
 }

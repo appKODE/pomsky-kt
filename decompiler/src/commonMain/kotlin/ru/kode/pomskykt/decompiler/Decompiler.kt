@@ -62,11 +62,25 @@ object Decompiler {
     fun explain(
         regex: String,
         flavor: RegexFlavor = RegexFlavor.Java,
+    ): ExplainResult = explain(regex, flavor, ExplainLocale.EN)
+
+    /**
+     * Explain a regex string in human-readable text in the given [locale].
+     *
+     * @param regex The regex string to explain.
+     * @param flavor The regex flavor (affects parsing of escapes, named groups, etc.).
+     * @param locale The language of the explanation.
+     * @return [ExplainResult] with explanation text, or error message on failure.
+     */
+    fun explain(
+        regex: String,
+        flavor: RegexFlavor = RegexFlavor.Java,
+        locale: ExplainLocale,
     ): ExplainResult {
         if (regex.isEmpty()) return ExplainResult(explanation = "empty pattern", error = null)
         return try {
             val ir = parse(regex, flavor)
-            val explanation = ExplanationEmitter().explain(ir)
+            val explanation = ExplanationEmitter(ExplanationStrings.of(locale)).explain(ir)
             ExplainResult(explanation = explanation, error = null)
         } catch (e: IllegalArgumentException) {
             ExplainResult(explanation = null, error = e.message)

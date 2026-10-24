@@ -2,6 +2,18 @@
 
 All notable changes to pomsky-kt will be documented in this file.
 
+## [0.19.0] - 2026-10-24
+
+### Added
+
+- **Match diagnosis** — new `MatchDiagnoser.diagnose(regex, input, maxSteps = 100_000): MatchDiagnosis?` explains why an input does not fully match a compiled pattern: the farthest position reached, the matched prefix, what was expected there (`"\": \""`, `a digit`, `one of feat, fix`, `end of input`, ...) and the innermost named group being matched. Returns `null` when the input matches, the step cap is hit, or the pattern uses constructs the simulator does not support (backreferences, recursion, raw regex, Unicode script/block properties).
+- **`Expr.compileToIr()`** — returns the optimized regex IR (before alternation factoring, so branches stay as written) for use with `MatchDiagnoser`.
+- **Localized explanations** — new `Decompiler.explain(regex, flavor, locale: ExplainLocale)` overload with `ExplainLocale.EN` and `ExplainLocale.RU`. The existing `explain(regex, flavor)` is unchanged and produces byte-identical English output.
+
+### Improved
+
+- **Test-block strings** — added coverage proving `Expr.parseAndCompile()` exposes the `match`/`reject` strings declared in `test { }` blocks.
+
 ## [0.18.0] - 2026-04-11
 
 ### Improved

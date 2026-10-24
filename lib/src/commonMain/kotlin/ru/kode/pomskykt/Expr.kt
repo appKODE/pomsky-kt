@@ -13,6 +13,7 @@ import ru.kode.pomskykt.diagnose.getParseHelp
 import ru.kode.pomskykt.diagnose.toMessage
 import ru.kode.pomskykt.options.CompileOptions
 import ru.kode.pomskykt.patterns.PatternLibrary
+import ru.kode.pomskykt.regex.Regex
 import ru.kode.pomskykt.options.RegexFlavor
 import ru.kode.pomskykt.regex.autoAtomize
 import ru.kode.pomskykt.regex.codegen
@@ -89,6 +90,42 @@ class Expr(val rule: Rule) {
         input: String,
         options: CompileOptions = CompileOptions(),
     ): Pair<String?, List<Diagnostic>> {
+        val (optimized, diagnostics) = compileToIr(input, options)
+        if (optimized == null) return null to diagnostics
+
+        // 5a. Factor common prefixes from alternations
+        val factored = optimized.factorAlternations()
+
+        // 5b. Eliminate dead (redundant) alternation branches
+        val pruned = factored.eliminateDeadBranches()
+
+        // 5c. Optimize lookaround assertions
+        val assertionOpt = pruned.optimizeAssertions()
+
+        // 5d. Auto-atomize (opt-in, only for flavors supporting atomic groups)
+        val atomized = if (options.autoAtomize && flavorSupportsAtomicGroups(options.flavor)) {
+            assertionOpt.autoAtomize()
+        } else {
+            assertionOpt
+        }
+
+        // 6. Codegen
+        return atomized.codegen(options.flavor) to diagnostics
+    }
+
+    /**
+     * Compile the parsed expression to the optimized [Regex] IR, without codegen.
+     *
+     * Alternations are not prefix-factored, so `'feat' | 'fix'` keeps both branches
+     * as written — useful for analysis such as [ru.kode.pomskykt.analysis.MatchDiagnoser].
+     * `let` variables are inlined, so their names do not appear in the IR.
+     *
+     * @return Pair of (IR or null on error, diagnostics)
+     */
+    fun compileToIr(
+        input: String,
+        options: CompileOptions = CompileOptions(),
+    ): Pair<Regex?, List<Diagnostic>> {
         val diagnostics = mutableListOf<Diagnostic>()
 
         // 1. Validate
@@ -162,29 +199,10 @@ class Expr(val rule: Rule) {
         // 5. Optimize
         val optimized = regexIR.optimize() ?: regexIR
 
-        // 5a. Factor common prefixes from alternations
-        val factored = optimized.factorAlternations()
-
-        // 5b. Eliminate dead (redundant) alternation branches
-        val pruned = factored.eliminateDeadBranches()
-
-        // 5c. Optimize lookaround assertions
-        val assertionOpt = pruned.optimizeAssertions()
-
-        // 5d. Auto-atomize (opt-in, only for flavors supporting atomic groups)
-        val atomized = if (options.autoAtomize && flavorSupportsAtomicGroups(options.flavor)) {
-            assertionOpt.autoAtomize()
-        } else {
-            assertionOpt
-        }
-
-        // 6. Codegen
-        val result = atomized.codegen(options.flavor)
-
         // Add any diagnostics from compilation state
         diagnostics.addAll(state.diagnostics)
 
-        return result to diagnostics
+        return optimized to diagnostics
     }
 
     /** Extract test blocks from the AST. */

@@ -2,7 +2,6 @@ plugins {
     id("pomsky.kmp-library")
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.vanniktech.maven.publish)
-    alias(libs.plugins.dokka)
 }
 
 kotlin {
